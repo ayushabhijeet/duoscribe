@@ -1,0 +1,61 @@
+{
+  "name": "duoscribe",
+  "version": "1.0.0",
+  "description": "Lightweight markdown viewer/editor with side-by-side raw and rendered panes",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^32.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "dependencies": {
+    "markdown-it": "^14.1.0"
+  },
+  "build": {
+    "appId": "com.duoscribe.app",
+    "productName": "Duoscribe",
+    "icon": "build/icon",
+    "files": ["main.js", "preload.js", "index.html", "renderer.js", "styles.css"],
+    "fileAssociations": [
+      {
+        "ext": "md",
+        "name": "Markdown",
+        "role": "Editor",
+        "icon": "build/icon.icns"
+      },
+      {
+        "ext": "markdown",
+        "name": "Markdown",
+        "role": "Editor",
+        "icon": "build/icon.icns"
+      }
+    ],
+    "mac": { "target": "dmg", "category": "public.app-category.productivity", "icon": "build/icon.icns" },
+    "dmg": {
+      "window": {
+        "width": 540,
+        "height": 380
+      },
+      "contents": [
+        {
+          "x": 130,
+          "y": 220,
+          "type": "file"
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64", "arm64"] }],
+      "icon": "build/icon.ico"
+    }
+  }
+}
