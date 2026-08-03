@@ -1,6 +1,6 @@
 {
   "name": "duoscribe",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Lightweight markdown viewer/editor with side-by-side raw and rendered panes",
   "main": "main.js",
   "scripts": {

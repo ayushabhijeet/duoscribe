@@ -6,11 +6,31 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div id="tabbar"></div>
-  <div id="drop-hint">Drag .md files here, or File &gt; Open</div>
-  <div id="panes">
-    <textarea id="source" spellcheck="false" placeholder="Open or drop a markdown file to begin..."></textarea>
-    <div id="preview"></div>
+  <div id="sidebar"></div>
+  <div id="main-column">
+    <div id="tabbar"></div>
+    <div id="drop-hint">Drag .md files here, or File &gt; Open</div>
+    <div id="panes">
+      <div id="source-container">
+        <textarea id="source" spellcheck="false" placeholder="Open or drop a markdown file to begin..."></textarea>
+        <div id="findbar" class="hidden">
+          <div class="findbar-group">
+            <input id="find-input" type="text" placeholder="Find..." />
+            <button id="find-prev-btn" title="Previous match (Shift+Enter)">↑</button>
+            <button id="find-next-btn" title="Next match (Enter)">↓</button>
+            <span id="find-counter" class="findbar-counter">0/0</span>
+          </div>
+          <div class="findbar-group">
+            <input id="replace-input" type="text" placeholder="Replace..." />
+            <button id="replace-btn" title="Replace current match">Replace</button>
+            <button id="replace-all-btn" title="Replace all matches">Replace All</button>
+          </div>
+          <button id="findbar-close-btn" class="findbar-close" title="Close (Esc)">×</button>
+        </div>
+      </div>
+      <div id="preview"></div>
+    </div>
+    <div id="statusbar"></div>
   </div>
   <script src="renderer.js"></script>
 </body>

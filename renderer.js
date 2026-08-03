@@ -2,6 +2,17 @@ const sourceEl = document.getElementById('source');
 const previewEl = document.getElementById('preview');
 const tabbarEl = document.getElementById('tabbar');
 const dropHintEl = document.getElementById('drop-hint');
+const statusbarEl = document.getElementById('statusbar');
+const findbarEl = document.getElementById('findbar');
+const findInputEl = document.getElementById('find-input');
+const replaceInputEl = document.getElementById('replace-input');
+const findCounterEl = document.getElementById('find-counter');
+const findPrevBtnEl = document.getElementById('find-prev-btn');
+const findNextBtnEl = document.getElementById('find-next-btn');
+const replaceBtnEl = document.getElementById('replace-btn');
+const replaceAllBtnEl = document.getElementById('replace-all-btn');
+const findbarCloseBtnEl = document.getElementById('findbar-close-btn');
+const sidebarEl = document.getElementById('sidebar');
 
 // Each doc: { id, filePath, content, savedContent }
 let docs = [];
@@ -9,9 +20,112 @@ let activeId = null;
 let idCounter = 0;
 let debounceTimer = null;
 let syncingScroll = false;
+let findMatches = [];
+let currentMatchIndex = -1;
+let folderTree = null;
+let folderRootPath = null;
 
 function activeDoc() {
   return docs.find((d) => d.id === activeId) || null;
+}
+
+function renderSidebarNode(node, depth = 0) {
+  const container = document.createElement('div');
+  const btn = document.createElement('button');
+  btn.className = `tree-node ${node.type}`;
+  if (node.type === 'file' && activeDoc()?.filePath === node.path) {
+    btn.classList.add('active');
+  }
+
+  const inner = document.createElement('div');
+  inner.className = 'tree-node-inner';
+  inner.style.paddingLeft = node.type === 'folder' ? `${12 + depth * 20}px` : `${12 + depth * 20}px`;
+
+  if (node.type === 'folder') {
+    const toggle = document.createElement('span');
+    toggle.className = 'tree-toggle';
+    toggle.textContent = '▼';
+    inner.appendChild(toggle);
+  }
+
+  const label = document.createElement('span');
+  label.textContent = node.name;
+  label.style.flex = '1';
+  label.style.minWidth = '0';
+  label.style.overflow = 'hidden';
+  label.style.textOverflow = 'ellipsis';
+  inner.appendChild(label);
+
+  btn.appendChild(inner);
+
+  if (node.type === 'folder') {
+    const childrenDiv = document.createElement('div');
+    childrenDiv.className = 'tree-children';
+    node.children?.forEach(child => {
+      childrenDiv.appendChild(renderSidebarNode(child, depth + 1));
+    });
+    container.appendChild(btn);
+    container.appendChild(childrenDiv);
+
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      childrenDiv.classList.toggle('hidden');
+      toggle.classList.toggle('collapsed');
+    });
+  } else if (node.type === 'file') {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const result = await window.mdViewer.openFilePath(node.path);
+      addDoc(result.filePath, result.content);
+      renderSidebar();
+    });
+    container.appendChild(btn);
+  }
+
+  return container;
+}
+
+function renderSidebar() {
+  sidebarEl.innerHTML = '';
+  if (!folderTree || !folderRootPath) {
+    sidebarEl.classList.remove('open');
+    return;
+  }
+
+  sidebarEl.classList.add('open');
+
+  const header = document.createElement('div');
+  header.className = 'sidebar-header';
+  header.textContent = folderRootPath.split(/[\\/]/).pop() || 'Folder';
+  sidebarEl.appendChild(header);
+
+  const tree = document.createElement('div');
+  tree.className = 'sidebar-tree';
+  folderTree.forEach(node => {
+    tree.appendChild(renderSidebarNode(node));
+  });
+  sidebarEl.appendChild(tree);
+}
+
+function updateStatusBar() {
+  const doc = activeDoc();
+  if (!doc) {
+    statusbarEl.innerHTML = '';
+    return;
+  }
+
+  const text = sourceEl.value;
+  const cursorPos = sourceEl.selectionStart;
+
+  const textBeforeCursor = text.substring(0, cursorPos);
+  const lines = textBeforeCursor.split('\n');
+  const line = lines.length;
+  const col = lines[lines.length - 1].length + 1;
+
+  const words = text.trim().split(/\s+/).filter(Boolean).length;
+  const chars = text.length;
+
+  statusbarEl.innerHTML = `<span>Ln ${line}, Col ${col}</span><span>${words} words, ${chars} chars</span>`;
 }
 
 function isDirty(doc) {
@@ -53,6 +167,7 @@ function renderTabs() {
     tab.addEventListener('click', () => switchToTab(doc.id));
     tabbarEl.appendChild(tab);
   });
+  renderSidebar();
 }
 
 function renderPreview() {
@@ -66,9 +181,11 @@ function loadActiveIntoEditor() {
   sourceEl.classList.toggle('hidden', !hasDoc);
   previewEl.classList.toggle('hidden', !hasDoc);
   dropHintEl.classList.toggle('hidden', hasDoc);
+  statusbarEl.classList.toggle('hidden', !hasDoc);
   if (hasDoc) {
     sourceEl.value = doc.content;
     renderPreview();
+    updateStatusBar();
   }
 }
 
@@ -92,6 +209,7 @@ function closeTab(id) {
   }
   loadActiveIntoEditor();
   renderTabs();
+  window.mdViewer.watchFiles(docs.map(d => d.filePath));
 }
 
 function addDoc(filePath, content) {
@@ -107,6 +225,7 @@ function addDoc(filePath, content) {
   activeId = doc.id;
   loadActiveIntoEditor();
   renderTabs();
+  window.mdViewer.watchFiles(docs.map(d => d.filePath));
 }
 
 async function saveActiveDoc() {
@@ -126,6 +245,7 @@ sourceEl.addEventListener('input', () => {
   if (!doc) return;
   doc.content = sourceEl.value;
   renderTabs();
+  updateStatusBar();
   clearTimeout(debounceTimer);
   debounceTimer = setTimeout(renderPreview, 150);
 });
@@ -143,6 +263,10 @@ function syncScroll(from, to) {
 sourceEl.addEventListener('scroll', () => syncScroll(sourceEl, previewEl));
 previewEl.addEventListener('scroll', () => syncScroll(previewEl, sourceEl));
 
+sourceEl.addEventListener('click', updateStatusBar);
+sourceEl.addEventListener('keyup', updateStatusBar);
+sourceEl.addEventListener('select', updateStatusBar);
+
 document.addEventListener('keydown', (e) => {
   const cmdOrCtrl = e.metaKey || e.ctrlKey;
   if (cmdOrCtrl && e.key.toLowerCase() === 's') {
@@ -152,6 +276,10 @@ document.addEventListener('keydown', (e) => {
   if (cmdOrCtrl && e.key.toLowerCase() === 'w') {
     e.preventDefault();
     if (activeId !== null) closeTab(activeId);
+  }
+  if (cmdOrCtrl && e.key.toLowerCase() === 'f') {
+    e.preventDefault();
+    openFindBar();
   }
   if (cmdOrCtrl && /^[1-9]$/.test(e.key)) {
     e.preventDefault();
@@ -168,6 +296,40 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+findInputEl.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    if (e.shiftKey) {
+      findPrev();
+    } else {
+      findNext();
+    }
+  }
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    closeFindBar();
+  }
+});
+
+replaceInputEl.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    closeFindBar();
+  }
+});
+
+findInputEl.addEventListener('input', () => {
+  findAllMatches(findInputEl.value);
+  currentMatchIndex = -1;
+  updateFindCounter();
+});
+
+findPrevBtnEl.addEventListener('click', findPrev);
+findNextBtnEl.addEventListener('click', findNext);
+replaceBtnEl.addEventListener('click', replaceOne);
+replaceAllBtnEl.addEventListener('click', replaceAll);
+findbarCloseBtnEl.addEventListener('click', closeFindBar);
+
 function cycleTab(direction) {
   if (docs.length === 0) return;
   const currentIndex = docs.findIndex((d) => d.id === activeId);
@@ -175,8 +337,156 @@ function cycleTab(direction) {
   switchToTab(docs[nextIndex].id);
 }
 
+function findAllMatches(searchTerm) {
+  findMatches = [];
+  if (!searchTerm) return;
+  const text = sourceEl.value;
+  const lowerText = text.toLowerCase();
+  const lowerSearch = searchTerm.toLowerCase();
+  let index = 0;
+  while ((index = lowerText.indexOf(lowerSearch, index)) !== -1) {
+    findMatches.push({ start: index, end: index + searchTerm.length });
+    index++;
+  }
+}
+
+function scrollToMatch(match) {
+  const textBefore = sourceEl.value.substring(0, match.start);
+  const line = textBefore.split('\n').length - 1;
+  const style = getComputedStyle(sourceEl);
+  const lineHeight = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.4;
+  const target = line * lineHeight - sourceEl.clientHeight / 2 + lineHeight;
+  sourceEl.scrollTop = Math.max(0, target);
+}
+
+function selectMatch(index) {
+  if (findMatches.length === 0) return;
+  currentMatchIndex = index % findMatches.length;
+  if (currentMatchIndex < 0) currentMatchIndex += findMatches.length;
+  const match = findMatches[currentMatchIndex];
+  sourceEl.focus();
+  sourceEl.setSelectionRange(match.start, match.end);
+  scrollToMatch(match);
+  updateFindCounter();
+}
+
+function updateFindCounter() {
+  if (findMatches.length === 0) {
+    findCounterEl.textContent = '0/0';
+  } else {
+    findCounterEl.textContent = `${currentMatchIndex + 1}/${findMatches.length}`;
+  }
+}
+
+function openFindBar() {
+  if (!activeDoc()) return;
+  findbarEl.classList.remove('hidden');
+  findInputEl.focus();
+  findInputEl.select();
+}
+
+function closeFindBar() {
+  findbarEl.classList.add('hidden');
+  sourceEl.focus();
+  findMatches = [];
+  currentMatchIndex = -1;
+  updateFindCounter();
+}
+
+function findNext() {
+  const searchTerm = findInputEl.value;
+  if (!searchTerm) return;
+  findAllMatches(searchTerm);
+  if (findMatches.length === 0) return;
+  if (currentMatchIndex === -1) {
+    selectMatch(0);
+  } else {
+    selectMatch(currentMatchIndex + 1);
+  }
+}
+
+function findPrev() {
+  const searchTerm = findInputEl.value;
+  if (!searchTerm) return;
+  findAllMatches(searchTerm);
+  if (findMatches.length === 0) return;
+  if (currentMatchIndex === -1) {
+    selectMatch(findMatches.length - 1);
+  } else {
+    selectMatch(currentMatchIndex - 1);
+  }
+}
+
+function replaceOne() {
+  if (findMatches.length === 0 || currentMatchIndex === -1) return;
+  const doc = activeDoc();
+  const match = findMatches[currentMatchIndex];
+  const before = sourceEl.value.substring(0, match.start);
+  const after = sourceEl.value.substring(match.end);
+  doc.content = before + replaceInputEl.value + after;
+  sourceEl.value = doc.content;
+  findAllMatches(findInputEl.value);
+  if (currentMatchIndex < findMatches.length) {
+    selectMatch(currentMatchIndex);
+  } else if (findMatches.length > 0) {
+    selectMatch(0);
+  } else {
+    currentMatchIndex = -1;
+    updateFindCounter();
+  }
+  renderTabs();
+  updateStatusBar();
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(renderPreview, 150);
+}
+
+function replaceAll() {
+  const searchTerm = findInputEl.value;
+  if (!searchTerm) return;
+  const doc = activeDoc();
+  const replaceWith = replaceInputEl.value;
+  let newContent = sourceEl.value;
+  const lowerContent = newContent.toLowerCase();
+  const lowerSearch = searchTerm.toLowerCase();
+  let result = '';
+  let lastIndex = 0;
+  let index = 0;
+  while ((index = lowerContent.indexOf(lowerSearch, index)) !== -1) {
+    result += newContent.substring(lastIndex, index) + replaceWith;
+    index += searchTerm.length;
+    lastIndex = index;
+  }
+  result += newContent.substring(lastIndex);
+  doc.content = result;
+  sourceEl.value = result;
+  findAllMatches(searchTerm);
+  currentMatchIndex = -1;
+  updateFindCounter();
+  renderTabs();
+  updateStatusBar();
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(renderPreview, 150);
+}
+
 window.mdViewer.onRequestSave(() => saveActiveDoc());
 window.mdViewer.onFileOpened(({ filePath, content }) => addDoc(filePath, content));
+window.mdViewer.onFileChangedExternally(({ filePath, content }) => {
+  const doc = docs.find((d) => d.filePath === filePath);
+  if (!doc) return;
+  if (doc.content === doc.savedContent) {
+    doc.content = content;
+    doc.savedContent = content;
+    if (doc.id === activeId) {
+      sourceEl.value = content;
+      renderPreview();
+    }
+  }
+});
+window.mdViewer.onFolderOpened(({ rootPath, tree }) => {
+  folderRootPath = rootPath;
+  folderTree = tree;
+  renderSidebar();
+});
 
 // Drag-and-drop support (multiple files at once)
 document.addEventListener('dragover', (e) => e.preventDefault());

@@ -5,6 +5,103 @@ const fs = require('fs');
 let mainWindow;
 let pendingFilePath = null;
 
+const RECENT_FILES_PATH = path.join(app.getPath('userData'), 'recent-files.json');
+const MAX_RECENT_FILES = 10;
+let recentFiles = [];
+
+const watchers = new Map();
+
+function loadRecentFiles() {
+  try {
+    if (fs.existsSync(RECENT_FILES_PATH)) {
+      const data = fs.readFileSync(RECENT_FILES_PATH, 'utf-8');
+      recentFiles = JSON.parse(data) || [];
+    }
+  } catch (err) {
+    recentFiles = [];
+  }
+}
+
+function saveRecentFiles() {
+  fs.writeFileSync(RECENT_FILES_PATH, JSON.stringify(recentFiles, null, 2), 'utf-8');
+}
+
+function addRecentFile(filePath) {
+  const normalized = path.normalize(filePath);
+  const index = recentFiles.findIndex(f => path.normalize(f) === normalized);
+  if (index > -1) {
+    recentFiles.splice(index, 1);
+  }
+  recentFiles.unshift(normalized);
+  if (recentFiles.length > MAX_RECENT_FILES) {
+    recentFiles = recentFiles.slice(0, MAX_RECENT_FILES);
+  }
+  saveRecentFiles();
+  rebuildMenu();
+}
+
+function removeRecentFile(filePath) {
+  const normalized = path.normalize(filePath);
+  recentFiles = recentFiles.filter(f => path.normalize(f) !== normalized);
+  saveRecentFiles();
+  rebuildMenu();
+}
+
+function escapeHtml(text) {
+  const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+  return text.replace(/[&<>"']/g, m => map[m]);
+}
+
+function buildStandaloneHtml(title, content) {
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${escapeHtml(title)}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif; line-height: 1.6; color: #333; background: #fff; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+    body { padding: 40px 24px; max-width: 900px; margin: 0 auto; }
+    h1 { font-size: 28px; font-weight: 700; margin: 32px 0 16px 0; padding-bottom: 12px; border-bottom: 1px solid #e0e0e0; letter-spacing: -0.01em; }
+    h1:first-child { margin-top: 0; }
+    h2 { font-size: 22px; font-weight: 700; margin: 28px 0 12px 0; padding-bottom: 8px; border-bottom: 1px solid #e0e0e0; letter-spacing: -0.005em; }
+    h3 { font-size: 18px; font-weight: 600; margin: 24px 0 10px 0; }
+    h4 { font-size: 16px; font-weight: 600; margin: 20px 0 8px 0; }
+    h5 { font-size: 15px; font-weight: 600; margin: 16px 0 6px 0; }
+    h6 { font-size: 14px; font-weight: 600; margin: 16px 0 6px 0; color: #666; }
+    p { margin: 12px 0; line-height: 1.7; }
+    a { color: #d4382e; text-decoration: none; border-bottom: 1px solid rgba(212, 56, 46, 0.3); }
+    a:hover { border-bottom-color: #d4382e; }
+    ul, ol { margin: 12px 0; padding-left: 24px; line-height: 1.7; }
+    li { margin: 6px 0; }
+    ul ul, ul ol, ol ul, ol ol { margin: 6px 0; }
+    code { background: #f5f5f5; color: #333; padding: 3px 6px; border-radius: 4px; font-family: "SF Mono", Menlo, Consolas, "Courier New", monospace; font-size: 13px; border: 1px solid #e0e0e0; }
+    pre { background: #f5f5f5; border: 1px solid #e0e0e0; border-radius: 6px; padding: 16px; overflow-x: auto; margin: 16px 0; }
+    pre code { background: transparent; border: none; padding: 0; font-size: 13px; line-height: 1.5; display: block; }
+    blockquote { border-left: 3px solid #d4382e; padding-left: 16px; margin: 16px 0; color: #666; font-style: italic; line-height: 1.7; }
+    blockquote p { margin: 8px 0; }
+    hr { border: none; border-top: 1px solid #e0e0e0; margin: 24px 0; }
+    table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 13px; border: 1px solid #e0e0e0; border-radius: 6px; overflow: hidden; }
+    thead { background: #f5f5f5; border-bottom: 1px solid #e0e0e0; }
+    th { border: 1px solid #e0e0e0; padding: 12px 16px; text-align: left; font-weight: 600; }
+    td { border: 1px solid #e0e0e0; padding: 10px 16px; }
+    tbody tr:nth-child(even) { background: #fafafa; }
+    tbody tr:hover { background: #f0f0f0; }
+    img { max-width: 100%; height: auto; border-radius: 6px; border: 1px solid #e0e0e0; margin: 12px 0; }
+  </style>
+</head>
+<body>
+${content}
+</body>
+</html>`;
+}
+
+function clearRecentFiles() {
+  recentFiles = [];
+  saveRecentFiles();
+  rebuildMenu();
+}
+
 function isMarkdownArg(arg) {
   return typeof arg === 'string' && /\.(md|markdown)$/i.test(arg);
 }
@@ -18,6 +115,7 @@ function getFileArgFromArgv(argv) {
 function openFileInWindow(filePath) {
   if (!filePath) return;
   const content = fs.readFileSync(filePath, 'utf-8');
+  addRecentFile(filePath);
   if (mainWindow) {
     mainWindow.webContents.send('file-opened', { filePath, content });
   } else {
@@ -75,41 +173,208 @@ function createWindow() {
   });
 
   mainWindow.on('closed', () => {
+    watchers.forEach((watcher) => watcher.close());
+    watchers.clear();
     mainWindow = null;
   });
 }
 
+async function exportAsHtml() {
+  const data = await mainWindow.webContents.executeJavaScript(`
+    (function() {
+      const doc = docs.find(d => d.id === activeId);
+      if (!doc) return null;
+      return { filePath: doc.filePath, html: document.getElementById('preview').innerHTML };
+    })()
+  `);
+
+  if (!data) return;
+
+  const basePath = path.basename(data.filePath, path.extname(data.filePath));
+  const dir = path.dirname(data.filePath);
+  const defaultPath = path.join(dir, basePath + '.html');
+  const title = basePath;
+  const html = buildStandaloneHtml(title, data.html);
+
+  const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+    filters: [{ name: 'HTML', extensions: ['html'] }],
+    defaultPath,
+  });
+
+  if (!canceled && filePath) {
+    fs.writeFileSync(filePath, html, 'utf-8');
+  }
+}
+
+async function exportAsPdf() {
+  const data = await mainWindow.webContents.executeJavaScript(`
+    (function() {
+      const doc = docs.find(d => d.id === activeId);
+      if (!doc) return null;
+      return { filePath: doc.filePath, html: document.getElementById('preview').innerHTML };
+    })()
+  `);
+
+  if (!data) return;
+
+  const basePath = path.basename(data.filePath, path.extname(data.filePath));
+  const title = basePath;
+  const html = buildStandaloneHtml(title, data.html);
+
+  const hiddenWindow = new BrowserWindow({
+    show: false,
+    webPreferences: { nodeIntegration: false },
+  });
+
+  const dataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
+  await hiddenWindow.loadURL(dataUrl);
+
+  const pdfBuffer = await hiddenWindow.webContents.printToPDF({});
+
+  const dir = path.dirname(data.filePath);
+  const defaultPath = path.join(dir, basePath + '.pdf');
+  const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+    filters: [{ name: 'PDF', extensions: ['pdf'] }],
+    defaultPath,
+  });
+
+  if (!canceled && filePath) {
+    fs.writeFileSync(filePath, pdfBuffer);
+  }
+
+  hiddenWindow.destroy();
+}
+
+function scanFolderForMarkdown(folderPath, maxDepth = 10, currentDepth = 0) {
+  if (currentDepth >= maxDepth) return [];
+
+  const noiseDir = new Set(['node_modules', '.git', 'dist', 'build', '.next', '.venv', '__pycache__']);
+  const items = [];
+
+  try {
+    const entries = fs.readdirSync(folderPath, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isSymbolicLink()) continue;
+      if (entry.isDirectory() && noiseDir.has(entry.name)) continue;
+
+      const fullPath = path.join(folderPath, entry.name);
+      if (entry.isDirectory()) {
+        const children = scanFolderForMarkdown(fullPath, maxDepth, currentDepth + 1);
+        if (children.length > 0) {
+          items.push({ name: entry.name, path: fullPath, type: 'folder', children });
+        }
+      } else if (/\.(md|markdown)$/i.test(entry.name)) {
+        items.push({ name: entry.name, path: fullPath, type: 'file' });
+      }
+    }
+  } catch (err) {
+  }
+
+  return items.sort((a, b) => {
+    if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
+}
+
 function buildMenu() {
+  const fileSubmenu = [
+    {
+      label: 'Open...',
+      accelerator: 'CmdOrCtrl+O',
+      click: async () => {
+        const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+          properties: ['openFile'],
+          filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }],
+        });
+        if (!canceled && filePaths[0]) {
+          openFileInWindow(filePaths[0]);
+        }
+      },
+    },
+    {
+      label: 'Open Folder...',
+      accelerator: 'CmdOrCtrl+K CmdOrCtrl+O',
+      click: async () => {
+        const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+          properties: ['openDirectory'],
+        });
+        if (!canceled && filePaths[0]) {
+          const rootPath = filePaths[0];
+          const tree = scanFolderForMarkdown(rootPath);
+          mainWindow.webContents.send('folder-opened', { rootPath, tree });
+        }
+      },
+    },
+    {
+      label: 'Save',
+      accelerator: 'CmdOrCtrl+S',
+      click: () => mainWindow.webContents.send('request-save'),
+    },
+    {
+      label: 'Export as HTML...',
+      click: () => exportAsHtml(),
+    },
+    {
+      label: 'Export as PDF...',
+      click: () => exportAsPdf(),
+    },
+    { type: 'separator' },
+  ];
+
+  if (recentFiles.length > 0) {
+    const basenames = {};
+    recentFiles.forEach(f => {
+      const bn = path.basename(f);
+      basenames[bn] = (basenames[bn] || 0) + 1;
+    });
+
+    const recentSubmenu = recentFiles.map((filePath) => {
+      const bn = path.basename(filePath);
+      const label = basenames[bn] > 1
+        ? path.join(path.basename(path.dirname(filePath)), bn)
+        : bn;
+      return {
+        label,
+        click: () => {
+          if (fs.existsSync(filePath)) {
+            openFileInWindow(filePath);
+          } else {
+            removeRecentFile(filePath);
+          }
+        },
+      };
+    });
+
+    recentSubmenu.push({ type: 'separator' });
+    recentSubmenu.push({
+      label: 'Clear Recent Files',
+      click: () => clearRecentFiles(),
+    });
+
+    fileSubmenu.push({
+      label: 'Open Recent',
+      submenu: recentSubmenu,
+    });
+    fileSubmenu.push({ type: 'separator' });
+  }
+
+  fileSubmenu.push({ role: 'quit' });
+
   const template = [
     {
       label: 'File',
-      submenu: [
-        {
-          label: 'Open...',
-          accelerator: 'CmdOrCtrl+O',
-          click: async () => {
-            const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
-              properties: ['openFile'],
-              filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }],
-            });
-            if (!canceled && filePaths[0]) {
-              openFileInWindow(filePaths[0]);
-            }
-          },
-        },
-        {
-          label: 'Save',
-          accelerator: 'CmdOrCtrl+S',
-          click: () => mainWindow.webContents.send('request-save'),
-        },
-        { type: 'separator' },
-        { role: 'quit' },
-      ],
+      submenu: fileSubmenu,
     },
     { role: 'editMenu' },
     { role: 'viewMenu' },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
+function rebuildMenu() {
+  if (mainWindow) {
+    buildMenu();
+  }
 }
 
 const gotLock = app.requestSingleInstanceLock();
@@ -131,6 +396,7 @@ if (!gotLock) {
   });
 
   app.whenReady().then(() => {
+    loadRecentFiles();
     buildMenu();
     createWindow();
 
@@ -153,10 +419,43 @@ ipcMain.handle('save-file', async (event, { filePath, content }) => {
     filePath = chosenPath;
   }
   fs.writeFileSync(filePath, content, 'utf-8');
+  addRecentFile(filePath);
   return { saved: true, filePath };
 });
 
 ipcMain.handle('open-file-path', async (event, filePath) => {
   const content = fs.readFileSync(filePath, 'utf-8');
   return { filePath, content };
+});
+
+ipcMain.on('watch-files', (event, filePaths) => {
+  const normalized = new Set(filePaths.map(p => path.normalize(p)));
+  const currentPaths = new Set(watchers.keys());
+
+  currentPaths.forEach((filePath) => {
+    if (!normalized.has(filePath)) {
+      const watcher = watchers.get(filePath);
+      if (watcher) watcher.close();
+      watchers.delete(filePath);
+    }
+  });
+
+  normalized.forEach((filePath) => {
+    if (!watchers.has(filePath) && fs.existsSync(filePath)) {
+      let debounceTimer = null;
+      const watcher = fs.watch(filePath, () => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+          try {
+            const content = fs.readFileSync(filePath, 'utf-8');
+            if (mainWindow) {
+              mainWindow.webContents.send('file-changed-externally', { filePath, content });
+            }
+          } catch (err) {
+          }
+        }, 300);
+      });
+      watchers.set(filePath, watcher);
+    }
+  });
 });

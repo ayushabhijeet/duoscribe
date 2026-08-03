@@ -50,7 +50,30 @@ html, body {
 
 body {
   display: flex;
+  flex-direction: row;
+}
+
+#sidebar {
+  width: 0;
+  display: flex;
   flex-direction: column;
+  border-right: 1px solid var(--pane-border);
+  background: var(--bg);
+  transition: width var(--transition);
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex-shrink: 0;
+}
+
+#sidebar.open {
+  width: 220px;
+}
+
+#main-column {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
 }
 
 /* Tab Bar */
@@ -186,16 +209,26 @@ body {
   min-height: 0;
 }
 
+#source-container {
+  position: relative;
+  flex: 1;
+  height: 100%;
+}
+
 #source.hidden, #preview.hidden {
   display: none;
 }
 
 #source, #preview {
-  width: 50%;
+  width: 100%;
   height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 24px;
+}
+
+#preview {
+  flex: 1;
 }
 
 /* Custom Scrollbars */
@@ -448,4 +481,202 @@ body {
   border: 1px solid var(--pane-border);
   margin: 12px 0;
   box-shadow: var(--shadow-sm);
+}
+
+/* Find Bar */
+#findbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--pane-border);
+  box-shadow: var(--shadow-md);
+  z-index: 10;
+  font-size: 13px;
+}
+
+#findbar.hidden {
+  display: none;
+}
+
+.findbar-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#find-input, #replace-input {
+  padding: 6px 10px;
+  border: 1px solid var(--pane-border);
+  border-radius: 4px;
+  background: var(--source-bg);
+  color: var(--fg);
+  font-size: 13px;
+  font-family: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+  outline: none;
+  transition: border-color var(--transition);
+}
+
+#find-input:focus, #replace-input:focus {
+  border-color: var(--accent);
+}
+
+#find-input::placeholder, #replace-input::placeholder {
+  color: var(--hint-fg);
+}
+
+.findbar-counter {
+  font-size: 12px;
+  color: var(--fg-secondary);
+  white-space: nowrap;
+  min-width: 40px;
+  text-align: right;
+  font-family: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+}
+
+#find-prev-btn, #find-next-btn, #replace-btn, #replace-all-btn, #findbar-close-btn {
+  padding: 6px 10px;
+  border: 1px solid var(--pane-border);
+  border-radius: 4px;
+  background: var(--accent-light);
+  color: var(--fg);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color var(--transition), border-color var(--transition);
+  user-select: none;
+}
+
+#find-prev-btn:hover, #find-next-btn:hover, #replace-btn:hover, #replace-all-btn:hover, #findbar-close-btn:hover {
+  background: var(--pane-border);
+  border-color: var(--fg-secondary);
+}
+
+#find-prev-btn:active, #find-next-btn:active, #replace-btn:active, #replace-all-btn:active, #findbar-close-btn:active {
+  opacity: 0.7;
+}
+
+.findbar-close {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 18px;
+  padding: 4px 8px;
+  line-height: 1;
+}
+
+/* Status Bar */
+#statusbar {
+  flex: 0 0 24px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  border-top: 1px solid var(--pane-border);
+  background: var(--bg);
+  color: var(--fg-secondary);
+  font-size: 11px;
+  font-family: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+  gap: 32px;
+  user-select: none;
+  box-shadow: var(--shadow-sm);
+}
+
+#statusbar.hidden {
+  display: none;
+}
+
+/* Sidebar */
+.sidebar-header {
+  padding: 12px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--pane-border);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+}
+
+.sidebar-tree {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px 0;
+}
+
+.tree-node {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+}
+
+.tree-node-inner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  color: var(--fg-secondary);
+  font-size: 13px;
+  transition: background-color var(--transition), color var(--transition);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tree-node:hover .tree-node-inner {
+  background-color: var(--accent-light);
+  color: var(--fg);
+}
+
+.tree-node.file .tree-node-inner {
+  padding-left: calc(12px + 20px);
+}
+
+.tree-node.file.active .tree-node-inner {
+  color: var(--accent);
+  font-weight: 500;
+  border-left: 2px solid var(--accent);
+  padding-left: calc(12px + 20px - 2px);
+}
+
+.tree-node.folder .tree-node-inner {
+  font-weight: 500;
+  color: var(--fg);
+  padding-left: 12px;
+}
+
+.tree-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--fg-secondary);
+  transition: transform var(--transition);
+}
+
+.tree-toggle.collapsed {
+  transform: rotate(-90deg);
+}
+
+.tree-children {
+  display: block;
+}
+
+.tree-children.hidden {
+  display: none;
 }
