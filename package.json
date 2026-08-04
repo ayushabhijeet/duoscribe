@@ -1,11 +1,20 @@
 {
   "name": "duoscribe",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Lightweight markdown viewer/editor with side-by-side raw and rendered panes",
   "main": "main.js",
+  "author": "Ayush Abhijeet",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ayushabhijeet/duoscribe.git"
+  },
+  "homepage": "https://github.com/ayushabhijeet/duoscribe",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder"
+    "dist": "electron-builder",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win"
   },
   "devDependencies": {
     "electron": "^32.0.0",
@@ -33,7 +42,11 @@
         "icon": "build/icon.icns"
       }
     ],
-    "mac": { "target": "dmg", "category": "public.app-category.productivity", "icon": "build/icon.icns" },
+    "mac": {
+      "target": [{ "target": "dmg", "arch": ["x64", "arm64"] }],
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.icns"
+    },
     "dmg": {
       "window": {
         "width": 540,

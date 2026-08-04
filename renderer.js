@@ -24,6 +24,7 @@ let findMatches = [];
 let currentMatchIndex = -1;
 let folderTree = null;
 let folderRootPath = null;
+let collapsedFolders = new Set();
 
 function activeDoc() {
   return docs.find((d) => d.id === activeId) || null;
@@ -41,11 +42,15 @@ function renderSidebarNode(node, depth = 0) {
   inner.className = 'tree-node-inner';
   inner.style.paddingLeft = node.type === 'folder' ? `${12 + depth * 20}px` : `${12 + depth * 20}px`;
 
+  const isCollapsed = node.type === 'folder' && collapsedFolders.has(node.path);
+  let toggleEl = null;
+
   if (node.type === 'folder') {
-    const toggle = document.createElement('span');
-    toggle.className = 'tree-toggle';
-    toggle.textContent = '▼';
-    inner.appendChild(toggle);
+    toggleEl = document.createElement('span');
+    toggleEl.className = 'tree-toggle';
+    if (isCollapsed) toggleEl.classList.add('collapsed');
+    toggleEl.textContent = '▼';
+    inner.appendChild(toggleEl);
   }
 
   const label = document.createElement('span');
@@ -61,6 +66,7 @@ function renderSidebarNode(node, depth = 0) {
   if (node.type === 'folder') {
     const childrenDiv = document.createElement('div');
     childrenDiv.className = 'tree-children';
+    if (isCollapsed) childrenDiv.classList.add('hidden');
     node.children?.forEach(child => {
       childrenDiv.appendChild(renderSidebarNode(child, depth + 1));
     });
@@ -69,8 +75,13 @@ function renderSidebarNode(node, depth = 0) {
 
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
+      if (collapsedFolders.has(node.path)) {
+        collapsedFolders.delete(node.path);
+      } else {
+        collapsedFolders.add(node.path);
+      }
       childrenDiv.classList.toggle('hidden');
-      toggle.classList.toggle('collapsed');
+      toggleEl.classList.toggle('collapsed');
     });
   } else if (node.type === 'file') {
     btn.addEventListener('click', async (e) => {
@@ -182,6 +193,7 @@ function loadActiveIntoEditor() {
   previewEl.classList.toggle('hidden', !hasDoc);
   dropHintEl.classList.toggle('hidden', hasDoc);
   statusbarEl.classList.toggle('hidden', !hasDoc);
+  document.getElementById('split-handle').classList.toggle('hidden', !hasDoc);
   if (hasDoc) {
     sourceEl.value = doc.content;
     renderPreview();
@@ -266,6 +278,50 @@ previewEl.addEventListener('scroll', () => syncScroll(previewEl, sourceEl));
 sourceEl.addEventListener('click', updateStatusBar);
 sourceEl.addEventListener('keyup', updateStatusBar);
 sourceEl.addEventListener('select', updateStatusBar);
+
+// Resizable split between source and preview panes.
+const sourceContainerEl = document.getElementById('source-container');
+const splitHandleEl = document.getElementById('split-handle');
+const panesEl = document.getElementById('panes');
+
+function applySplit(percent) {
+  sourceContainerEl.style.flex = `0 0 ${percent}%`;
+}
+
+const savedSplit = parseFloat(localStorage.getItem('splitPercent'));
+applySplit(Number.isFinite(savedSplit) ? savedSplit : 50);
+
+splitHandleEl.addEventListener('mousedown', (e) => {
+  e.preventDefault();
+  document.body.classList.add('resizing');
+  splitHandleEl.classList.add('dragging');
+
+  function onMouseMove(e) {
+    const rect = panesEl.getBoundingClientRect();
+    let percent = ((e.clientX - rect.left) / rect.width) * 100;
+    percent = Math.min(85, Math.max(15, percent));
+    applySplit(percent);
+  }
+
+  function onMouseUp() {
+    document.body.classList.remove('resizing');
+    splitHandleEl.classList.remove('dragging');
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup', onMouseUp);
+    const percent = parseFloat(sourceContainerEl.style.flexBasis);
+    if (Number.isFinite(percent)) {
+      localStorage.setItem('splitPercent', percent);
+    }
+  }
+
+  document.addEventListener('mousemove', onMouseMove);
+  document.addEventListener('mouseup', onMouseUp);
+});
+
+splitHandleEl.addEventListener('dblclick', () => {
+  applySplit(50);
+  localStorage.setItem('splitPercent', 50);
+});
 
 document.addEventListener('keydown', (e) => {
   const cmdOrCtrl = e.metaKey || e.ctrlKey;
@@ -494,7 +550,8 @@ document.addEventListener('drop', async (e) => {
   e.preventDefault();
   const files = Array.from(e.dataTransfer.files).filter((f) => /\.(md|markdown)$/i.test(f.name));
   for (const file of files) {
-    const result = await window.mdViewer.openFilePath(file.path);
+    const filePath = window.mdViewer.getPathForFile(file);
+    const result = await window.mdViewer.openFilePath(filePath);
     addDoc(result.filePath, result.content);
   }
 });

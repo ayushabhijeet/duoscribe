@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 const MarkdownIt = require('markdown-it');
 
 const md = new MarkdownIt({ html: false, linkify: true, breaks: false });
@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('mdViewer', {
   onFolderOpened: (callback) => {
     ipcRenderer.on('folder-opened', (event, data) => callback(data));
   },
+  getPathForFile: (file) => webUtils.getPathForFile(file),
   saveFile: (filePath, content) => ipcRenderer.invoke('save-file', { filePath, content }),
   openFilePath: (filePath) => ipcRenderer.invoke('open-file-path', filePath),
   watchFiles: (filePaths) => ipcRenderer.send('watch-files', filePaths),

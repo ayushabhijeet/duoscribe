@@ -213,6 +213,44 @@ body {
   position: relative;
   flex: 1;
   height: 100%;
+  min-width: 0;
+}
+
+#split-handle {
+  flex: 0 0 6px;
+  cursor: col-resize;
+  background: transparent;
+  position: relative;
+}
+
+#split-handle::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 2px;
+  width: 2px;
+  background: var(--pane-border);
+  transition: background-color var(--transition);
+}
+
+#split-handle:hover::after,
+#split-handle.dragging::after {
+  background: var(--accent);
+}
+
+#split-handle.hidden {
+  display: none;
+}
+
+body.resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
+body.resizing #source,
+body.resizing #preview {
+  pointer-events: none;
 }
 
 #source.hidden, #preview.hidden {
@@ -259,7 +297,6 @@ body {
   background: var(--source-bg);
   color: var(--fg);
   border: none;
-  border-right: 1px solid var(--pane-border);
   resize: none;
   outline: none;
   font-family: "SF Mono", Menlo, Consolas, "Courier New", monospace;
