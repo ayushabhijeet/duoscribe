@@ -403,6 +403,13 @@
   }
   .gatekeeper-note a { color: var(--accent); text-decoration: none; }
   .gatekeeper-note a:hover { text-decoration: underline; }
+  .gatekeeper-note code {
+    font-family: var(--mono);
+    background: var(--code-bg);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
 
   /* Footer */
   footer {
@@ -561,7 +568,7 @@
       </div>
     </div>
     <p class="gatekeeper-note">
-      These builds aren't code-signed yet, so your OS will flag them on first launch. On macOS: right-click the app → <strong>Open</strong>. On Windows: click <strong>More info</strong> → <strong>Run anyway</strong>. Details in the <a href="https://github.com/ayushabhijeet/duoscribe#install" target="_blank" rel="noopener">README</a>.
+      These builds aren't code-signed yet, so your OS will flag them on first launch. <strong>Apple Silicon:</strong> macOS will say the app "is damaged" — it isn't; run <code>xattr -cr /Applications/Duoscribe.app</code> in Terminal, then open it normally. <strong>Intel:</strong> right-click the app → <strong>Open</strong>. <strong>Windows:</strong> click <strong>More info</strong> → <strong>Run anyway</strong>. Details in the <a href="https://github.com/ayushabhijeet/duoscribe#install" target="_blank" rel="noopener">README</a>.
     </p>
   </div>
 </section>
