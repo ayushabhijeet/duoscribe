@@ -18,15 +18,19 @@ Download the latest build for your platform from the [Releases page](https://git
 ### macOS
 
 1. Download the right `.dmg` for your Mac:
-   - Apple Silicon (M1/M2/M3/M4): `Duoscribe-<version>-arm64.dmg`
-   - Intel: `Duoscribe-<version>.dmg`
+   - Apple Silicon (M1 and later): `Duoscribe-mac-arm64.dmg`
+   - Intel: `Duoscribe-mac-x64.dmg`
 
    Not sure which chip you have? Apple menu → About This Mac → look for "Chip".
 
 2. Open the `.dmg` and drag **Duoscribe** into the **Applications** folder.
-3. The app is unsigned (no Apple Developer certificate), so on first launch macOS Gatekeeper will refuse to open it via double-click. Instead:
-   - Right-click (or Control-click) **Duoscribe.app** in Applications → **Open** → confirm **Open** in the dialog.
-   - You only need to do this once; after that it opens normally.
+3. The app isn't code-signed or notarized (no paid Apple Developer account behind it), so macOS will block the first launch:
+   - **Intel**: double-clicking shows an "unidentified developer" warning. Right-click (or Control-click) **Duoscribe.app** → **Open** → confirm **Open** in the dialog. Only needed once.
+   - **Apple Silicon**: you'll instead see **"Duoscribe is damaged and can't be opened."** This is misleading — the app isn't actually corrupted, but arm64 Macs enforce code-signature checks that flag any unsigned, quarantined (i.e. downloaded) app this way, and right-click → Open won't fix it. Instead, open Terminal and run:
+     ```bash
+     xattr -cr /Applications/Duoscribe.app
+     ```
+     Then launch it normally. You'll need to repeat this once per download (each fresh download reapplies the quarantine flag).
 
 ### Windows
 
