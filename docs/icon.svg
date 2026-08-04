@@ -1,0 +1,31 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2b2f38"/>
+      <stop offset="1" stop-color="#171a20"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="220" fill="url(#bg)"/>
+
+  <!-- divider -->
+  <rect x="502" y="140" width="20" height="744" rx="10" fill="#d4382e"/>
+
+  <!-- left: raw markdown marks -->
+  <g fill="#9aa0ab" font-family="SF Mono, Menlo, monospace" font-weight="600" font-size="92">
+    <text x="130" y="360">#</text>
+    <text x="130" y="480">**</text>
+    <text x="130" y="600">-</text>
+    <text x="130" y="720">&gt;</text>
+  </g>
+
+  <!-- right: rendered result -->
+  <g>
+    <rect x="600" y="320" width="290" height="46" rx="10" fill="#e8eaee"/>
+    <rect x="600" y="410" width="230" height="34" rx="8" fill="#e8eaee"/>
+    <circle cx="622" cy="520" r="10" fill="#e8eaee"/>
+    <rect x="650" y="505" width="200" height="30" rx="8" fill="#e8eaee"/>
+    <rect x="600" y="610" width="10" height="90" fill="#d4382e"/>
+    <rect x="630" y="620" width="250" height="30" rx="8" fill="#8a909c"/>
+    <rect x="630" y="665" width="180" height="30" rx="8" fill="#8a909c"/>
+  </g>
+</svg>
