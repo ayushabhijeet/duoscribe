@@ -14,6 +14,14 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
   --transition: 120ms ease-out;
+  /* Code syntax highlighting tokens */
+  --hl-comment: #a0a1a7;
+  --hl-purple: #a626a4;
+  --hl-red: #e45649;
+  --hl-green: #50a14f;
+  --hl-orange: #986801;
+  --hl-blue: #4078f2;
+  --hl-yellow: #c18401;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -31,7 +39,61 @@
     --table-stripe: #1f1f1f;
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+    --hl-comment: #5c6370;
+    --hl-purple: #c678dd;
+    --hl-red: #e06c75;
+    --hl-green: #98c379;
+    --hl-orange: #d19a66;
+    --hl-blue: #61afef;
+    --hl-yellow: #e5c07b;
   }
+}
+
+/* Manual theme override (takes precedence over the OS-driven media query above) */
+:root[data-theme="light"] {
+  --bg: #ffffff;
+  --fg: #1a1a1a;
+  --fg-secondary: #666;
+  --pane-border: #d9d9d9;
+  --source-bg: #f7f7f7;
+  --preview-bg: #ffffff;
+  --accent: #d4382e;
+  --accent-light: #e8e8e8;
+  --hint-fg: #a0a0a0;
+  --code-bg: #f2f2f2;
+  --table-stripe: #fafafa;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
+  --hl-comment: #a0a1a7;
+  --hl-purple: #a626a4;
+  --hl-red: #e45649;
+  --hl-green: #50a14f;
+  --hl-orange: #986801;
+  --hl-blue: #4078f2;
+  --hl-yellow: #c18401;
+}
+
+:root[data-theme="dark"] {
+  --bg: #1a1a1a;
+  --fg: #e6e6e6;
+  --fg-secondary: #b0b0b0;
+  --pane-border: #2d2d2d;
+  --source-bg: #111111;
+  --preview-bg: #1a1a1a;
+  --accent: #ff6b6b;
+  --accent-light: #2a2a2a;
+  --hint-fg: #666;
+  --code-bg: #252525;
+  --table-stripe: #1f1f1f;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+  --hl-comment: #5c6370;
+  --hl-purple: #c678dd;
+  --hl-red: #e06c75;
+  --hl-green: #98c379;
+  --hl-orange: #d19a66;
+  --hl-blue: #61afef;
+  --hl-yellow: #e5c07b;
 }
 
 * { box-sizing: border-box; }
@@ -76,16 +138,41 @@ body {
   min-width: 0;
 }
 
-/* Tab Bar */
-#tabbar {
+/* Toolbar (tab bar + persistent controls) */
+#toolbar {
   display: flex;
   align-items: stretch;
-  overflow-x: auto;
-  overflow-y: hidden;
   border-bottom: 1px solid var(--pane-border);
   min-height: 40px;
   background: var(--bg);
   box-shadow: var(--shadow-sm);
+}
+
+/* Tab Bar */
+#tabbar {
+  display: flex;
+  align-items: stretch;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+#theme-toggle {
+  flex: 0 0 auto;
+  width: 40px;
+  border: none;
+  border-left: 1px solid var(--pane-border);
+  background: transparent;
+  color: var(--fg-secondary);
+  font-size: 15px;
+  cursor: pointer;
+  transition: color var(--transition), background-color var(--transition);
+}
+
+#theme-toggle:hover {
+  color: var(--fg);
+  background-color: var(--accent-light);
 }
 
 #tabbar::-webkit-scrollbar {
@@ -448,6 +535,103 @@ body.resizing #preview {
   font-size: 13px;
   line-height: 1.5;
   display: block;
+}
+
+/* Syntax highlighting (highlight.js token classes) */
+.hljs-comment,
+.hljs-quote {
+  color: var(--hl-comment);
+  font-style: italic;
+}
+
+.hljs-doctag,
+.hljs-keyword,
+.hljs-formula {
+  color: var(--hl-purple);
+}
+
+.hljs-section,
+.hljs-name,
+.hljs-selector-tag,
+.hljs-deletion,
+.hljs-subst {
+  color: var(--hl-red);
+}
+
+.hljs-literal {
+  color: var(--hl-blue);
+}
+
+.hljs-string,
+.hljs-regexp,
+.hljs-addition,
+.hljs-attribute,
+.hljs-meta .hljs-string {
+  color: var(--hl-green);
+}
+
+.hljs-attr,
+.hljs-variable,
+.hljs-template-variable,
+.hljs-type,
+.hljs-selector-class,
+.hljs-selector-attr,
+.hljs-selector-pseudo,
+.hljs-number {
+  color: var(--hl-orange);
+}
+
+.hljs-symbol,
+.hljs-bullet,
+.hljs-link,
+.hljs-meta,
+.hljs-selector-id,
+.hljs-title {
+  color: var(--hl-blue);
+}
+
+.hljs-built_in,
+.hljs-title.class_,
+.hljs-class .hljs-title {
+  color: var(--hl-yellow);
+}
+
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: 700; }
+
+/* Mermaid diagrams render into a plain <pre class="mermaid">; drop the code-block chrome */
+#preview pre.mermaid {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 8px 0;
+  text-align: center;
+  overflow-x: auto;
+}
+
+#preview pre.mermaid svg {
+  max-width: 100%;
+}
+
+/* Task list checkboxes (GFM `- [ ]` / `- [x]`) */
+#preview .task-list-item {
+  list-style: none;
+  margin-left: -22px;
+  padding-left: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+#preview .task-list-item-checkbox {
+  margin: 0;
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  position: relative;
+  top: 1px;
 }
 
 /* Typography - Blockquote */

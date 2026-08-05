@@ -4,12 +4,18 @@ A lightweight markdown viewer/editor with side-by-side raw and rendered panes, b
 
 ![platforms](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-blue) ![license](https://img.shields.io/badge/license-MIT-green)
 
+![Duoscribe screenshot: raw markdown on the left, rendered output with a task list, syntax-highlighted code, and a Mermaid diagram on the right](docs/screenshots/app-screenshot.png)
+
 ## Features
 
 - Side-by-side raw / rendered markdown panes with a draggable, resizable split
 - Tabs for multiple open files, folder sidebar with file tree
 - Find & replace, synced scrolling, auto-reload on external file changes
 - Export rendered output, recent files, `.md`/`.markdown` file association
+- Syntax-highlighted fenced code blocks
+- Mermaid diagrams (` ```mermaid ` fenced blocks render as diagrams)
+- GitHub-style task list checkboxes (`- [ ]` / `- [x]`) — click to toggle, updates the raw source
+- Manual light/dark/system theme toggle
 
 ## Install
 

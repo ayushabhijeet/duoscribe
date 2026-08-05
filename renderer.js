@@ -184,7 +184,62 @@ function renderTabs() {
 function renderPreview() {
   const doc = activeDoc();
   previewEl.innerHTML = doc ? window.mdViewer.renderMarkdown(doc.content) : '';
+  renderMermaidBlocks();
 }
+
+function isDarkTheme() {
+  const override = document.documentElement.dataset.theme;
+  if (override === 'dark') return true;
+  if (override === 'light') return false;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+
+function renderMermaidBlocks() {
+  if (!window.mermaid) return;
+  const nodes = previewEl.querySelectorAll('pre.mermaid');
+  if (nodes.length === 0) return;
+  try {
+    window.mermaid.initialize({
+      startOnLoad: false,
+      securityLevel: 'strict',
+      theme: isDarkTheme() ? 'dark' : 'default',
+    });
+    window.mermaid.run({ nodes });
+  } catch (err) {
+    console.error('Mermaid render failed', err);
+  }
+}
+
+// GFM task list checkboxes: clicking one flips the raw `[ ]`/`[x]` in the source.
+previewEl.addEventListener('click', (e) => {
+  if (!e.target.classList?.contains('task-list-item-checkbox')) return;
+  const doc = activeDoc();
+  if (!doc) return;
+
+  const allBoxes = Array.from(previewEl.querySelectorAll('.task-list-item-checkbox'));
+  const targetIndex = allBoxes.indexOf(e.target);
+  if (targetIndex === -1) return;
+
+  const taskLineRegex = /^(\s*(?:[-*+]|\d+[.)])\s+)\[([ xX])\](\s+.*)?$/;
+  const lines = sourceEl.value.split('\n');
+  let count = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const match = lines[i].match(taskLineRegex);
+    if (!match) continue;
+    if (count === targetIndex) {
+      lines[i] = match[1] + '[' + (e.target.checked ? 'x' : ' ') + ']' + (match[3] || '');
+      break;
+    }
+    count++;
+  }
+
+  const newValue = lines.join('\n');
+  sourceEl.value = newValue;
+  doc.content = newValue;
+  renderTabs();
+  updateStatusBar();
+  renderPreview();
+});
 
 function loadActiveIntoEditor() {
   const doc = activeDoc();
@@ -554,6 +609,31 @@ document.addEventListener('drop', async (e) => {
     const result = await window.mdViewer.openFilePath(filePath);
     addDoc(result.filePath, result.content);
   }
+});
+
+// Manual theme toggle (system -> light -> dark -> system), overrides the OS-driven default.
+const themeToggleEl = document.getElementById('theme-toggle');
+const THEME_CYCLE = ['system', 'light', 'dark'];
+const THEME_ICON = { system: '◐', light: '☀', dark: '☾' };
+
+function applyTheme(theme) {
+  if (theme === 'system') {
+    delete document.documentElement.dataset.theme;
+  } else {
+    document.documentElement.dataset.theme = theme;
+  }
+  themeToggleEl.textContent = THEME_ICON[theme];
+  themeToggleEl.title = `Toggle theme (currently: ${theme})`;
+  localStorage.setItem('theme', theme);
+  renderPreview();
+}
+
+applyTheme(localStorage.getItem('theme') || 'system');
+
+themeToggleEl.addEventListener('click', () => {
+  const current = localStorage.getItem('theme') || 'system';
+  const next = THEME_CYCLE[(THEME_CYCLE.indexOf(current) + 1) % THEME_CYCLE.length];
+  applyTheme(next);
 });
 
 loadActiveIntoEditor();

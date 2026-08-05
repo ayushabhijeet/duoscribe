@@ -8,7 +8,10 @@
 <body>
   <div id="sidebar"></div>
   <div id="main-column">
-    <div id="tabbar"></div>
+    <div id="toolbar">
+      <div id="tabbar"></div>
+      <button id="theme-toggle" title="Toggle theme (system)">◐</button>
+    </div>
     <div id="drop-hint">Drag .md files here, or File &gt; Open</div>
     <div id="panes">
       <div id="source-container">
@@ -33,6 +36,7 @@
     </div>
     <div id="statusbar"></div>
   </div>
+  <script src="vendor/mermaid.min.js"></script>
   <script src="renderer.js"></script>
 </body>
 </html>
