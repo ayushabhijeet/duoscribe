@@ -46,8 +46,17 @@ contextBridge.exposeInMainWorld('mdViewer', {
   onFolderOpened: (callback) => {
     ipcRenderer.on('folder-opened', (event, data) => callback(data));
   },
+  getInitialSpellcheck: () => ipcRenderer.invoke('get-spellcheck'),
+  onSpellcheckChanged: (callback) => {
+    ipcRenderer.on('spellcheck-changed', (event, value) => callback(value));
+  },
   getPathForFile: (file) => webUtils.getPathForFile(file),
   saveFile: (filePath, content) => ipcRenderer.invoke('save-file', { filePath, content }),
   openFilePath: (filePath) => ipcRenderer.invoke('open-file-path', filePath),
   watchFiles: (filePaths) => ipcRenderer.send('watch-files', filePaths),
+  savePastedImage: (imageData, mimeType, filePath) => ipcRenderer.invoke('save-pasted-image', { imageData, mimeType, filePath }),
+  openFileDialog: () => ipcRenderer.invoke('open-file-dialog'),
+  openFolderDialog: () => ipcRenderer.invoke('open-folder-dialog'),
+  exportHtml: () => ipcRenderer.invoke('export-html'),
+  exportPdf: () => ipcRenderer.invoke('export-pdf'),
 });

@@ -16,6 +16,7 @@ A lightweight markdown viewer/editor with side-by-side raw and rendered panes, b
 - Mermaid diagrams (` ```mermaid ` fenced blocks render as diagrams)
 - GitHub-style task list checkboxes (`- [ ]` / `- [x]`) — click to toggle, updates the raw source
 - Manual light/dark/system theme toggle
+- Command palette (Cmd/Ctrl+K), outline/table-of-contents panel (Cmd/Ctrl+Shift+O), paste-image-from-clipboard, and a spellcheck toggle (Edit > Spellcheck)
 
 ## Install
 

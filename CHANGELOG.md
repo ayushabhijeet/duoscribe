@@ -6,6 +6,12 @@
 - Mermaid diagram rendering for ` ```mermaid ` fenced blocks
 - Clickable GFM task list checkboxes that write back to the raw markdown
 - Manual light/dark/system theme toggle (independent of OS preference)
+- Command palette (Cmd/Ctrl+K) for Save, Find, Close Tab, Toggle Theme, Toggle Outline, jumping between open tabs, Open File/Folder, and Export as HTML/PDF
+- Outline / table-of-contents panel (Cmd/Ctrl+Shift+O) — click a heading to jump to it
+- Paste an image from the clipboard directly into the editor — it's saved next to the file in an `assets/` folder and linked automatically
+- Spellcheck toggle under Edit > Spellcheck (off by default, matching prior behavior)
+- "Open Folder..." moved to Cmd/Ctrl+Alt+O to free up Cmd/Ctrl+K and Cmd/Ctrl+Shift+O for the command palette and outline panel
+- Automated CI and tagged-release builds via GitHub Actions
 
 ## v1.1.0
 
