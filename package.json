@@ -1,6 +1,6 @@
 {
   "name": "duoscribe",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Lightweight markdown viewer/editor with side-by-side raw and rendered panes",
   "main": "main.js",
   "author": "Ayush Abhijeet",
@@ -18,16 +18,26 @@
   },
   "devDependencies": {
     "electron": "^32.0.0",
-    "electron-builder": "^25.0.0"
+    "electron-builder": "^25.0.0",
+    "mermaid": "^11.16.1"
   },
   "dependencies": {
-    "markdown-it": "^14.1.0"
+    "highlight.js": "^11.11.1",
+    "markdown-it": "^14.1.0",
+    "markdown-it-task-lists": "^2.1.1"
   },
   "build": {
     "appId": "com.duoscribe.app",
     "productName": "Duoscribe",
     "icon": "build/icon",
-    "files": ["main.js", "preload.js", "index.html", "renderer.js", "styles.css"],
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "renderer.js",
+      "styles.css",
+      "vendor/**/*"
+    ],
     "fileAssociations": [
       {
         "ext": "md",
@@ -43,7 +53,15 @@
       }
     ],
     "mac": {
-      "target": [{ "target": "dmg", "arch": ["x64", "arm64"] }],
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
       "category": "public.app-category.productivity",
       "icon": "build/icon.icns",
       "artifactName": "${productName}-mac-${arch}.${ext}"
@@ -68,7 +86,15 @@
       ]
     },
     "win": {
-      "target": [{ "target": "nsis", "arch": ["x64", "arm64"] }],
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
       "icon": "build/icon.ico",
       "artifactName": "${productName}-win-setup.${ext}"
     }

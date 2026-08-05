@@ -1,7 +1,36 @@
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
 const MarkdownIt = require('markdown-it');
+const hljs = require('highlight.js');
+const taskLists = require('markdown-it-task-lists');
 
-const md = new MarkdownIt({ html: false, linkify: true, breaks: false });
+function escapeHtml(str) {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+const md = new MarkdownIt({
+  html: false,
+  linkify: true,
+  breaks: false,
+  highlight: (str, lang) => {
+    if (lang === 'mermaid') {
+      return `<pre class="mermaid">${escapeHtml(str)}</pre>`;
+    }
+    const language = lang && hljs.getLanguage(lang) ? lang : null;
+    try {
+      const value = language
+        ? hljs.highlight(str, { language, ignoreIllegals: true }).value
+        : hljs.highlightAuto(str).value;
+      return `<pre class="hljs-pre"><code class="hljs${language ? ' language-' + language : ''}">${value}</code></pre>`;
+    } catch (e) {
+      return `<pre class="hljs-pre"><code class="hljs">${escapeHtml(str)}</code></pre>`;
+    }
+  },
+});
+md.use(taskLists, { enabled: true, label: true });
 
 contextBridge.exposeInMainWorld('mdViewer', {
   renderMarkdown: (text) => md.render(text),

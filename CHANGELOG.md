@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.2.0
+
+- Syntax-highlighted fenced code blocks (highlight.js)
+- Mermaid diagram rendering for ` ```mermaid ` fenced blocks
+- Clickable GFM task list checkboxes that write back to the raw markdown
+- Manual light/dark/system theme toggle (independent of OS preference)
+
 ## v1.1.0
 
 - Draggable, resizable split between the raw and rendered panes (double-click the divider to reset to 50/50)

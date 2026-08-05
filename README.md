@@ -10,6 +10,10 @@ A lightweight markdown viewer/editor with side-by-side raw and rendered panes, b
 - Tabs for multiple open files, folder sidebar with file tree
 - Find & replace, synced scrolling, auto-reload on external file changes
 - Export rendered output, recent files, `.md`/`.markdown` file association
+- Syntax-highlighted fenced code blocks
+- Mermaid diagrams (` ```mermaid ` fenced blocks render as diagrams)
+- GitHub-style task list checkboxes (`- [ ]` / `- [x]`) — click to toggle, updates the raw source
+- Manual light/dark/system theme toggle
 
 ## Install
 
