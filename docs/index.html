@@ -275,6 +275,14 @@
     margin-top: 14px;
   }
 
+  .app-screenshot {
+    width: 100%;
+    max-width: 960px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow);
+  }
+
   /* Section shared */
   section {
     width: 100%;
@@ -480,6 +488,16 @@
     <p class="demo-hint">↑ edit the raw text, drag the divider — this is the actual interaction model of the app</p>
   </div>
 </main>
+
+<section class="tight">
+  <div class="wrap" style="display:flex; flex-direction:column; align-items:center;">
+    <div class="section-head">
+      <p class="eyebrow">-- the real thing</p>
+      <h2>Syntax highlighting, task lists, and Mermaid diagrams — actually rendered</h2>
+    </div>
+    <img class="app-screenshot" src="screenshots/app-screenshot.png" alt="Duoscribe window showing a task list with checkboxes, syntax-highlighted JavaScript and Python code blocks, and a rendered Mermaid flowchart, all in the right-hand preview pane" />
+  </div>
+</section>
 
 <section>
   <div class="wrap">
