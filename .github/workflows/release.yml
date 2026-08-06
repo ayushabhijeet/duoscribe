@@ -11,7 +11,7 @@ permissions:
 jobs:
   build-mac:
     name: Build macOS installers
-    runs-on: macos-14
+    runs-on: macos-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,27 +24,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Root cause found via a diagnostic step (removed now): the earlier
-      # EEXIST hardlinking icon.icns into a freshly-extracted Electron.app
-      # reproduced 4/4 times in CI, 0/4 locally, across every runner label,
-      # cache state, and single-vs-split-arch invocation we tried. The
-      # diagnostic run revealed `npm ci` had auto-cached an arm64 electron
-      # zip via its postinstall -- meaning macos-14/macos-latest are Apple
-      # Silicon (arm64) runners, unlike this project's Intel-only local dev
-      # machine. Building the x64 *target* is therefore cross-arch (arm64
-      # process packaging an x64 app bundle) only in CI, never locally --
-      # and that asymmetry, not the OS version or single-vs-multi-arch
-      # invocation, is the actual variable that changed across every failed
-      # attempt. Running the x64 build under Rosetta (`arch -x86_64`) makes
-      # the whole node/electron-builder process genuinely x86_64, matching
-      # what happens locally, instead of cross-building from arm64.
-      # -c.mac.target=dmg clears the config's arch array for each invocation
-      # so --x64/--arm64 actually restrict to one architecture each.
-      - name: Build unsigned mac installer (x64, via Rosetta)
-        run: arch -x86_64 npx electron-builder --mac --x64 -c.mac.target=dmg --publish=never
-
-      - name: Build unsigned mac installer (arm64, native)
-        run: npx electron-builder --mac --arm64 -c.mac.target=dmg --publish=never
+      - name: Build unsigned mac installers (x64 + arm64)
+        run: npm run dist -- --mac --publish=never
 
       - name: Upload mac artifacts
         uses: actions/upload-artifact@v4
