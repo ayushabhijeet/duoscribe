@@ -24,14 +24,31 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Diagnostic: an EEXIST hardlinking icon.icns into a freshly-extracted
+      # Electron.app has reproduced 3/3 times in CI (across macos-latest and
+      # macos-14, single- and multi-arch invocations) but 0/3 locally,
+      # including with electron/electron-builder caches fully wiped. If a
+      # GitHub-hosted runner image ships with a pre-warmed tool cache here,
+      # this will show it; if the dirs are empty, that theory is dead too and
+      # the next failure log needs a different hypothesis.
+      - name: Diagnose electron/electron-builder caches
+        run: |
+          echo "--- ~/Library/Caches/electron ---"
+          ls -laR ~/Library/Caches/electron 2>&1 || true
+          echo "--- ~/Library/Caches/electron-builder ---"
+          ls -laR ~/Library/Caches/electron-builder 2>&1 || true
+
+      - name: Clear electron/electron-builder caches
+        run: rm -rf ~/Library/Caches/electron ~/Library/Caches/electron-builder
+
       # Built as two fully separate electron-builder processes rather than one
       # "--mac" invocation covering both arches: packaging both in a single
-      # process reliably hit an EEXIST hardlinking icon.icns into the second
-      # arch's Electron.app on GitHub-hosted mac runners (reproduced on both
-      # macos-latest and macos-14; never reproduced locally, even with cold
-      # caches, so it's runner-specific, not a real config/dependency bug).
-      # -c.mac.target=dmg clears the config's arch array for this invocation
-      # so --x64/--arm64 actually restrict to one architecture each.
+      # process reliably hit the same EEXIST error (this was disproven as the
+      # actual cause -- it still fails on the very first, isolated invocation
+      # -- but keeping the split since it's harmless and closer to how the
+      # working local runs were shaped). -c.mac.target=dmg clears the config's
+      # arch array for this invocation so --x64/--arm64 actually restrict to
+      # one architecture each.
       - name: Build unsigned mac installer (x64)
         run: npx electron-builder --mac --x64 -c.mac.target=dmg --publish=never
 
