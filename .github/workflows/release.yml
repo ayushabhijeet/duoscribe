@@ -11,10 +11,6 @@ permissions:
 jobs:
   build-mac:
     name: Build macOS installers
-    # Pinned below macos-latest: electron-builder 25.1.8 hits an EEXIST hardlink
-    # error copying icon.icns when run against macos-latest's newer macOS/APFS
-    # (reproduced only in CI, not locally on an older macOS) -- macos-14 matches
-    # a version electron-builder is known to work with.
     runs-on: macos-14
     steps:
       - name: Checkout
@@ -28,8 +24,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build unsigned mac installers (x64 + arm64)
-        run: npm run dist -- --mac --publish=never
+      # Built as two fully separate electron-builder processes rather than one
+      # "--mac" invocation covering both arches: packaging both in a single
+      # process reliably hit an EEXIST hardlinking icon.icns into the second
+      # arch's Electron.app on GitHub-hosted mac runners (reproduced on both
+      # macos-latest and macos-14; never reproduced locally, even with cold
+      # caches, so it's runner-specific, not a real config/dependency bug).
+      # -c.mac.target=dmg clears the config's arch array for this invocation
+      # so --x64/--arm64 actually restrict to one architecture each.
+      - name: Build unsigned mac installer (x64)
+        run: npx electron-builder --mac --x64 -c.mac.target=dmg --publish=never
+
+      - name: Build unsigned mac installer (arm64)
+        run: npx electron-builder --mac --arm64 -c.mac.target=dmg --publish=never
 
       - name: Upload mac artifacts
         uses: actions/upload-artifact@v4
