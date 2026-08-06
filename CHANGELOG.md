@@ -12,6 +12,7 @@
 - Spellcheck toggle under Edit > Spellcheck (off by default, matching prior behavior)
 - "Open Folder..." moved to Cmd/Ctrl+Alt+O to free up Cmd/Ctrl+K and Cmd/Ctrl+Shift+O for the command palette and outline panel
 - Automated CI and tagged-release builds via GitHub Actions
+- Help > Check for Updates, plus a silent check a few seconds after launch — checks GitHub Releases and prompts if a newer version is out
 
 ## v1.1.0
 

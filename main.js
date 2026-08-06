@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, Menu, dialog, ipcMain, shell, net } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -441,6 +441,15 @@ function buildMenu() {
       submenu: editSubmenu,
     },
     { role: 'viewMenu' },
+    {
+      label: 'Help',
+      submenu: [
+        {
+          label: 'Check for Updates...',
+          click: () => checkForUpdates(true),
+        },
+      ],
+    },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
@@ -448,6 +457,86 @@ function buildMenu() {
 function rebuildMenu() {
   if (mainWindow) {
     buildMenu();
+  }
+}
+
+const UPDATE_CHECK_URL = 'https://api.github.com/repos/ayushabhijeet/duoscribe/releases/latest';
+
+function parseVersion(v) {
+  return v.replace(/^v/, '').split('.').map((n) => parseInt(n, 10) || 0);
+}
+
+function isNewerVersion(latest, current) {
+  const a = parseVersion(latest);
+  const b = parseVersion(current);
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const diff = (a[i] || 0) - (b[i] || 0);
+    if (diff !== 0) return diff > 0;
+  }
+  return false;
+}
+
+function fetchLatestRelease() {
+  return new Promise((resolve, reject) => {
+    const request = net.request({ method: 'GET', url: UPDATE_CHECK_URL });
+    request.setHeader('User-Agent', 'Duoscribe');
+    request.setHeader('Accept', 'application/vnd.github+json');
+    let body = '';
+    request.on('response', (response) => {
+      if (response.statusCode !== 200) {
+        reject(new Error(`GitHub API returned ${response.statusCode}`));
+        return;
+      }
+      response.on('data', (chunk) => { body += chunk; });
+      response.on('end', () => {
+        try {
+          resolve(JSON.parse(body));
+        } catch (err) {
+          reject(err);
+        }
+      });
+    });
+    request.on('error', reject);
+    request.end();
+  });
+}
+
+async function checkForUpdates(interactive) {
+  try {
+    const release = await fetchLatestRelease();
+    const currentVersion = app.getVersion();
+    const latestVersion = release.tag_name || '';
+
+    if (isNewerVersion(latestVersion, currentVersion)) {
+      const { response } = await dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'Update available',
+        message: `Duoscribe ${latestVersion} is available`,
+        detail: `You're on ${currentVersion}. Download the new version from the Releases page?`,
+        buttons: ['View Release', 'Later'],
+        defaultId: 0,
+        cancelId: 1,
+      });
+      if (response === 0) {
+        shell.openExternal(release.html_url);
+      }
+    } else if (interactive) {
+      await dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'No updates available',
+        message: `You're up to date`,
+        detail: `Duoscribe ${currentVersion} is the latest version.`,
+      });
+    }
+  } catch (err) {
+    if (interactive) {
+      await dialog.showMessageBox(mainWindow, {
+        type: 'error',
+        title: 'Couldn\'t check for updates',
+        message: 'Couldn\'t reach GitHub to check for updates.',
+        detail: err.message || String(err),
+      });
+    }
   }
 }
 
@@ -474,6 +563,7 @@ if (!gotLock) {
     loadSettings();
     buildMenu();
     createWindow();
+    setTimeout(() => checkForUpdates(false), 3000);
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
