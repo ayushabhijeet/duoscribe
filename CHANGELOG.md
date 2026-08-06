@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.4.0
+
+- New File command (Cmd/Ctrl+N, File menu, and command palette) creates a blank "Untitled-N" tab that you can type into and save like any other — Cmd/Ctrl+S on it opens the native save dialog, after which the tab picks up the saved file's name.
+
 ## v1.3.0
 
 - Focus either pane full-width instead of the split view — Cmd/Ctrl+Shift+1 for the raw pane, Cmd/Ctrl+Shift+2 for preview, toggle buttons in the toolbar, or via the command palette. Pressing the active one again returns to the split.

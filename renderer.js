@@ -19,10 +19,11 @@ const commandPaletteOverlayEl = document.getElementById('command-palette-overlay
 const commandPaletteInputEl = document.getElementById('command-palette-input');
 const commandPaletteListEl = document.getElementById('command-palette-list');
 
-// Each doc: { id, filePath, content, savedContent }
+// Each doc: { id, filePath, content, savedContent, untitledName }
 let docs = [];
 let activeId = null;
 let idCounter = 0;
+let untitledCounter = 0;
 let debounceTimer = null;
 let syncingScroll = false;
 let findMatches = [];
@@ -155,6 +156,10 @@ function baseName(filePath) {
   return filePath.split(/[\\/]/).pop();
 }
 
+function docLabel(doc) {
+  return doc.filePath ? baseName(doc.filePath) : doc.untitledName;
+}
+
 function renderTabs() {
   tabbarEl.innerHTML = '';
   docs.forEach((doc) => {
@@ -164,7 +169,7 @@ function renderTabs() {
 
     const label = document.createElement('span');
     label.className = 'tab-label';
-    label.textContent = baseName(doc.filePath);
+    label.textContent = docLabel(doc);
     tab.appendChild(label);
 
     if (isDirty(doc)) {
@@ -359,7 +364,7 @@ function switchToTab(id) {
 function closeTab(id) {
   const doc = docs.find((d) => d.id === id);
   if (doc && isDirty(doc)) {
-    const ok = confirm(`"${baseName(doc.filePath)}" has unsaved changes. Close anyway?`);
+    const ok = confirm(`"${docLabel(doc)}" has unsaved changes. Close anyway?`);
     if (!ok) return;
   }
   const index = docs.findIndex((d) => d.id === id);
@@ -370,7 +375,7 @@ function closeTab(id) {
   }
   loadActiveIntoEditor();
   renderTabs();
-  window.mdViewer.watchFiles(docs.map(d => d.filePath));
+  window.mdViewer.watchFiles(docs.map(d => d.filePath).filter(Boolean));
 }
 
 function addDoc(filePath, content) {
@@ -386,7 +391,23 @@ function addDoc(filePath, content) {
   activeId = doc.id;
   loadActiveIntoEditor();
   renderTabs();
-  window.mdViewer.watchFiles(docs.map(d => d.filePath));
+  window.mdViewer.watchFiles(docs.map(d => d.filePath).filter(Boolean));
+}
+
+function newDoc() {
+  untitledCounter += 1;
+  const doc = {
+    id: ++idCounter,
+    filePath: null,
+    untitledName: 'Untitled-' + untitledCounter,
+    content: '',
+    savedContent: '',
+  };
+  docs.push(doc);
+  activeId = doc.id;
+  loadActiveIntoEditor();
+  renderTabs();
+  sourceEl.focus();
 }
 
 async function saveActiveDoc() {
@@ -395,9 +416,11 @@ async function saveActiveDoc() {
   const result = await window.mdViewer.saveFile(doc.filePath, sourceEl.value);
   if (result.saved) {
     doc.filePath = result.filePath;
+    doc.untitledName = null;
     doc.savedContent = sourceEl.value;
     doc.content = sourceEl.value;
     renderTabs();
+    window.mdViewer.watchFiles(docs.map(d => d.filePath).filter(Boolean));
   }
 }
 
@@ -559,6 +582,10 @@ document.addEventListener('keydown', (e) => {
   if (cmdOrCtrl && e.key.toLowerCase() === 's') {
     e.preventDefault();
     saveActiveDoc();
+  }
+  if (cmdOrCtrl && e.key.toLowerCase() === 'n') {
+    e.preventDefault();
+    newDoc();
   }
   if (cmdOrCtrl && e.key.toLowerCase() === 'w') {
     e.preventDefault();
@@ -778,6 +805,7 @@ function replaceAll() {
 }
 
 window.mdViewer.onRequestSave(() => saveActiveDoc());
+window.mdViewer.onRequestNew(() => newDoc());
 window.mdViewer.onFileOpened(({ filePath, content }) => addDoc(filePath, content));
 window.mdViewer.onFileChangedExternally(({ filePath, content }) => {
   const doc = docs.find((d) => d.filePath === filePath);
@@ -858,6 +886,7 @@ themeToggleEl.addEventListener('click', () => {
 function buildPaletteCommands() {
   const commands = [];
 
+  commands.push({ label: 'New File', run: () => newDoc() });
   commands.push({ label: 'Save', run: () => saveActiveDoc() });
   commands.push({ label: 'Find', run: () => openFindBar() });
   if (activeId !== null) {
@@ -869,7 +898,7 @@ function buildPaletteCommands() {
   commands.push({ label: 'Focus Preview Pane', run: () => togglePaneViewMode('preview') });
 
   docs.forEach((doc) => {
-    commands.push({ label: baseName(doc.filePath), run: () => switchToTab(doc.id) });
+    commands.push({ label: docLabel(doc), run: () => switchToTab(doc.id) });
   });
 
   commands.push({ label: 'Open File', run: () => window.mdViewer.openFileDialog() });
