@@ -42,14 +42,12 @@
       {
         "ext": "md",
         "name": "Markdown",
-        "role": "Editor",
-        "icon": "build/icon.icns"
+        "role": "Editor"
       },
       {
         "ext": "markdown",
         "name": "Markdown",
-        "role": "Editor",
-        "icon": "build/icon.icns"
+        "role": "Editor"
       }
     ],
     "mac": {
