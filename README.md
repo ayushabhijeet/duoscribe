@@ -9,6 +9,7 @@ A lightweight markdown viewer/editor with side-by-side raw and rendered panes, b
 ## Features
 
 - Side-by-side raw / rendered markdown panes with a draggable, resizable split, or focus either pane full-width (Cmd/Ctrl+Shift+1 for raw, Cmd/Ctrl+Shift+2 for preview)
+- New File (Cmd/Ctrl+N, File menu, or command palette) to start a blank "Untitled" tab without opening anything from disk
 - Tabs for multiple open files, folder sidebar with file tree
 - Find & replace, synced scrolling, auto-reload on external file changes
 - Export rendered output, recent files, `.md`/`.markdown` file association

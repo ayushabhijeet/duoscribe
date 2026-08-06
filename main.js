@@ -218,6 +218,14 @@ async function exportAsHtml() {
 
   if (!data) return;
 
+  if (!data.filePath) {
+    dialog.showMessageBox(mainWindow, {
+      type: 'warning',
+      message: 'Save this file first, then export again.',
+    });
+    return;
+  }
+
   const basePath = path.basename(data.filePath, path.extname(data.filePath));
   const dir = path.dirname(data.filePath);
   const defaultPath = path.join(dir, basePath + '.html');
@@ -244,6 +252,14 @@ async function exportAsPdf() {
   `);
 
   if (!data) return;
+
+  if (!data.filePath) {
+    dialog.showMessageBox(mainWindow, {
+      type: 'warning',
+      message: 'Save this file first, then export again.',
+    });
+    return;
+  }
 
   const basePath = path.basename(data.filePath, path.extname(data.filePath));
   const title = basePath;
@@ -327,6 +343,11 @@ async function openFolderDialog() {
 
 function buildMenu() {
   const fileSubmenu = [
+    {
+      label: 'New File',
+      accelerator: 'CmdOrCtrl+N',
+      click: () => mainWindow.webContents.send('request-new'),
+    },
     {
       label: 'Open...',
       accelerator: 'CmdOrCtrl+O',

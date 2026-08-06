@@ -266,6 +266,134 @@ async function main() {
     const findOpen = await evaluate(client, `!document.getElementById('findbar').classList.contains('hidden')`);
     assert('Cmd/Ctrl+F opens the find bar', findOpen);
 
+    section('new file');
+    // Close the find bar first (its Escape handler lives on find-input, which
+    // currently has focus) so the Cmd/Ctrl+N keydown below doesn't get
+    // intercepted by anything but the global listener.
+    await dispatchKey(client, { key: 'Escape', code: 'Escape' });
+    await sleep(100);
+
+    await dispatchKey(client, { key: 'n', code: 'KeyN', metaKey: true, ctrlKey: true });
+    await sleep(100);
+    const tabLabelsAfterNew = await evaluate(
+      client,
+      `Array.from(document.querySelectorAll('.tab-label')).map(t => t.textContent)`
+    );
+    assert(
+      'Cmd/Ctrl+N opens a tab labeled Untitled-1',
+      tabLabelsAfterNew.includes('Untitled-1'),
+      JSON.stringify(tabLabelsAfterNew)
+    );
+
+    const sourceEmptyOnNew = await evaluate(client, `document.getElementById('source').value === ''`);
+    assert('new untitled tab has an empty, editable source textarea', sourceEmptyOnNew);
+
+    const previewEmptyOnNew = await evaluate(client, `document.getElementById('preview').innerHTML === ''`);
+    assert('new untitled tab has an empty rendered preview pane', previewEmptyOnNew);
+
+    await evaluate(
+      client,
+      `(() => {
+        const s = document.getElementById('source');
+        s.value = 'hello untitled';
+        s.dispatchEvent(new Event('input', { bubbles: true }));
+      })()`
+    );
+    await sleep(250); // past the 150ms render debounce
+
+    const untitledDirty = await evaluate(
+      client,
+      `(() => {
+        const doc = docs.find(d => d.untitledName === 'Untitled-1');
+        return !!doc && doc.content !== doc.savedContent;
+      })()`
+    );
+    assert('typing into the untitled tab marks it dirty (content !== savedContent)', untitledDirty);
+
+    const dirtyDotPresent = await evaluate(
+      client,
+      `!!Array.from(document.querySelectorAll('.tab')).find(t => t.textContent.includes('Untitled-1'))?.querySelector('.tab-dirty')`
+    );
+    assert('a .tab-dirty dot appears on the untitled tab', dirtyDotPresent);
+
+    const previewUpdatedForUntitled = await evaluate(
+      client,
+      `document.getElementById('preview').textContent.includes('hello untitled')`
+    );
+    assert('preview updates from the untitled tab after the debounce', previewUpdatedForUntitled);
+
+    await dispatchKey(client, { key: 'n', code: 'KeyN', metaKey: true, ctrlKey: true });
+    await sleep(100);
+    const tabLabelsAfterSecondNew = await evaluate(
+      client,
+      `Array.from(document.querySelectorAll('.tab-label')).map(t => t.textContent)`
+    );
+    assert(
+      'a second Cmd/Ctrl+N produces Untitled-2 (counter keeps incrementing this session)',
+      tabLabelsAfterSecondNew.includes('Untitled-2'),
+      JSON.stringify(tabLabelsAfterSecondNew)
+    );
+
+    const untitledFilePathsSane = await evaluate(
+      client,
+      `docs.filter(d => d.untitledName).every(d => d.filePath === null)`
+    );
+    assert('unsaved untitled docs carry filePath: null, never undefined', untitledFilePathsSane);
+
+    // Closing an empty, never-typed-in untitled tab (Untitled-2) must not require
+    // confirmation -- if it did, calling closeTab here would block forever on a
+    // real confirm() dialog and this evaluate() call would time out.
+    const tabCountBeforeCloseEmpty = await evaluate(client, `document.querySelectorAll('.tab').length`);
+    await evaluate(
+      client,
+      `(() => {
+        const doc = docs.find(d => d.untitledName === 'Untitled-2');
+        closeTab(doc.id);
+      })()`
+    );
+    await sleep(100);
+    const tabCountAfterCloseEmpty = await evaluate(client, `document.querySelectorAll('.tab').length`);
+    assert(
+      'closing an empty untitled tab needs no confirm and removes it',
+      tabCountAfterCloseEmpty === tabCountBeforeCloseEmpty - 1,
+      `${tabCountBeforeCloseEmpty} -> ${tabCountAfterCloseEmpty}`
+    );
+
+    // The remaining untitled tab (Untitled-1) has typed, unsaved content, so it
+    // is gated by the same isDirty check closeTab already uses for named files --
+    // asserted directly rather than by actually invoking closeTab (which would
+    // pop a real, un-mockable confirm() dialog and hang this run).
+    const untitledOneStillDirty = await evaluate(
+      client,
+      `(() => {
+        const doc = docs.find(d => d.untitledName === 'Untitled-1');
+        return !!doc && doc.content !== doc.savedContent;
+      })()`
+    );
+    assert('untitled tab with typed content remains dirty and would be confirm-gated on close', untitledOneStillDirty);
+
+    // Cmd/Ctrl+S on an untitled tab must reach the save-file IPC with
+    // filePath: null so main.js's existing `if (!filePath) { ...showSaveDialog... }`
+    // branch fires. window.mdViewer is a contextBridge object -- frozen and
+    // non-configurable by design (verified: Object.isFrozen(window.mdViewer)
+    // is true, so wrapping/spying on saveFile from the page context is not
+    // possible, and actually invoking it here would pop a real, un-mockable
+    // native save dialog and hang/derail the whole automated run). Instead we
+    // assert the two facts that together guarantee the IPC call shape without
+    // ever triggering it: (a) the active untitled doc's filePath is really
+    // null, and (b) the shipped saveActiveDoc source unconditionally forwards
+    // `doc.filePath` (no null-guard/early-return before the call), which
+    // main.js's own `if (!filePath)` branch is written to expect.
+    const activeUntitledFilePath = await evaluate(client, `activeDoc()?.filePath`);
+    assert('active untitled tab has filePath: null going into save', activeUntitledFilePath === null);
+
+    const saveActiveDocSource = await evaluate(client, `saveActiveDoc.toString()`);
+    assert(
+      'saveActiveDoc forwards doc.filePath as-is to saveFile (no guard around the null case)',
+      /window\.mdViewer\.saveFile\(\s*doc\.filePath/.test(saveActiveDocSource),
+      saveActiveDocSource
+    );
+
     section('console');
     assert(
       'no uncaught exceptions during the whole run',

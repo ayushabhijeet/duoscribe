@@ -40,6 +40,9 @@ contextBridge.exposeInMainWorld('mdViewer', {
   onRequestSave: (callback) => {
     ipcRenderer.on('request-save', () => callback());
   },
+  onRequestNew: (callback) => {
+    ipcRenderer.on('request-new', () => callback());
+  },
   onFileChangedExternally: (callback) => {
     ipcRenderer.on('file-changed-externally', (event, data) => callback(data));
   },
