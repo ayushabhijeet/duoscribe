@@ -11,7 +11,11 @@ permissions:
 jobs:
   build-mac:
     name: Build macOS installers
-    runs-on: macos-latest
+    # Pinned below macos-latest: electron-builder 25.1.8 hits an EEXIST hardlink
+    # error copying icon.icns when run against macos-latest's newer macOS/APFS
+    # (reproduced only in CI, not locally on an older macOS) -- macos-14 matches
+    # a version electron-builder is known to work with.
+    runs-on: macos-14
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,7 +29,7 @@ jobs:
         run: npm ci
 
       - name: Build unsigned mac installers (x64 + arm64)
-        run: npm run dist -- --mac
+        run: npm run dist -- --mac --publish=never
 
       - name: Upload mac artifacts
         uses: actions/upload-artifact@v4
@@ -52,7 +56,7 @@ jobs:
         run: npm ci
 
       - name: Build unsigned windows installer (x64 + arm64)
-        run: npm run dist -- --win
+        run: npm run dist -- --win --publish=never
 
       - name: Upload windows artifact
         uses: actions/upload-artifact@v4
