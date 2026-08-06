@@ -6,6 +6,7 @@
 - Mermaid diagram rendering for ` ```mermaid ` fenced blocks
 - Clickable GFM task list checkboxes that write back to the raw markdown
 - Manual light/dark/system theme toggle (independent of OS preference)
+- Help > Check for Updates, plus a silent check a few seconds after launch — checks GitHub Releases and prompts if a newer version is out
 
 ## v1.1.0
 

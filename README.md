@@ -16,6 +16,7 @@ A lightweight markdown viewer/editor with side-by-side raw and rendered panes, b
 - Mermaid diagrams (` ```mermaid ` fenced blocks render as diagrams)
 - GitHub-style task list checkboxes (`- [ ]` / `- [x]`) — click to toggle, updates the raw source
 - Manual light/dark/system theme toggle
+- Checks GitHub Releases for updates on launch (and via Help > Check for Updates) — does not auto-install, just links you to the new version
 
 ## Install
 
