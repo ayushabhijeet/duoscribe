@@ -1,0 +1,90 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-mac:
+    name: Build macOS installers
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build unsigned mac installers (x64 + arm64)
+        run: npm run dist -- --mac
+
+      - name: Upload mac artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-installers
+          path: |
+            dist/Duoscribe-mac-x64.dmg
+            dist/Duoscribe-mac-arm64.dmg
+          if-no-files-found: error
+
+  build-win:
+    name: Build Windows installer
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build unsigned windows installer (x64 + arm64)
+        run: npm run dist -- --win
+
+      - name: Upload windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: win-installer
+          path: dist/Duoscribe-win-setup.exe
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    needs: [build-mac, build-win]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download mac artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: mac-installers
+          path: dist
+
+      - name: Download windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: win-installer
+          path: dist
+
+      - name: Create/update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+          files: |
+            dist/Duoscribe-mac-x64.dmg
+            dist/Duoscribe-mac-arm64.dmg
+            dist/Duoscribe-win-setup.exe

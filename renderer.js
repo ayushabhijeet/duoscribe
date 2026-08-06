@@ -13,6 +13,11 @@ const replaceBtnEl = document.getElementById('replace-btn');
 const replaceAllBtnEl = document.getElementById('replace-all-btn');
 const findbarCloseBtnEl = document.getElementById('findbar-close-btn');
 const sidebarEl = document.getElementById('sidebar');
+const outlinePanelEl = document.getElementById('outline-panel');
+const outlineToggleEl = document.getElementById('outline-toggle');
+const commandPaletteOverlayEl = document.getElementById('command-palette-overlay');
+const commandPaletteInputEl = document.getElementById('command-palette-input');
+const commandPaletteListEl = document.getElementById('command-palette-list');
 
 // Each doc: { id, filePath, content, savedContent }
 let docs = [];
@@ -25,6 +30,9 @@ let currentMatchIndex = -1;
 let folderTree = null;
 let folderRootPath = null;
 let collapsedFolders = new Set();
+let paletteCommands = [];
+let paletteFiltered = [];
+let paletteSelectedIndex = -1;
 
 function activeDoc() {
   return docs.find((d) => d.id === activeId) || null;
@@ -185,6 +193,7 @@ function renderPreview() {
   const doc = activeDoc();
   previewEl.innerHTML = doc ? window.mdViewer.renderMarkdown(doc.content) : '';
   renderMermaidBlocks();
+  renderOutline();
 }
 
 function isDarkTheme() {
@@ -209,6 +218,91 @@ function renderMermaidBlocks() {
     console.error('Mermaid render failed', err);
   }
 }
+
+// Outline / Table of Contents: build a fence-aware heading list from the raw
+// source (same ordinal-matching technique used for task-list checkboxes below --
+// count matches in raw-text order, then map that same ordinal onto the rendered
+// DOM elements produced by renderPreview()).
+function computeOutline(content) {
+  const headingRegex = /^(#{1,6})\s+(.*)$/;
+  const fenceRegex = /^\s*```/;
+  const headings = [];
+  let inFence = false;
+  const lines = content.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (fenceRegex.test(line)) {
+      inFence = !inFence;
+      continue;
+    }
+    if (inFence) continue;
+    const match = line.match(headingRegex);
+    if (match) {
+      headings.push({ level: match[1].length, text: match[2].trim() });
+    }
+  }
+  return headings;
+}
+
+function scrollToHeading(index) {
+  const headingEls = previewEl.querySelectorAll('h1, h2, h3, h4, h5, h6');
+  const target = headingEls[index];
+  if (target) target.scrollIntoView({ block: 'start' });
+}
+
+function renderOutline() {
+  outlinePanelEl.innerHTML = '';
+  const doc = activeDoc();
+  if (!doc) return;
+
+  const header = document.createElement('div');
+  header.className = 'outline-header';
+  header.textContent = 'Outline';
+  outlinePanelEl.appendChild(header);
+
+  const list = document.createElement('div');
+  list.className = 'outline-list';
+
+  const headings = computeOutline(doc.content);
+  if (headings.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'outline-empty';
+    empty.textContent = 'No headings';
+    list.appendChild(empty);
+  } else {
+    headings.forEach((heading, index) => {
+      const item = document.createElement('button');
+      item.className = 'outline-item';
+      item.style.paddingLeft = `${12 + (heading.level - 1) * 14}px`;
+      item.textContent = heading.text || '(untitled)';
+      item.title = heading.text || '(untitled)';
+      item.addEventListener('click', () => scrollToHeading(index));
+      list.appendChild(item);
+    });
+  }
+
+  outlinePanelEl.appendChild(list);
+}
+
+function openOutline() {
+  outlinePanelEl.classList.add('open');
+  outlineToggleEl.classList.add('active');
+}
+
+function closeOutline() {
+  outlinePanelEl.classList.remove('open');
+  outlineToggleEl.classList.remove('active');
+}
+
+function toggleOutline() {
+  if (outlinePanelEl.classList.contains('open')) {
+    closeOutline();
+  } else {
+    openOutline();
+  }
+}
+
+outlineToggleEl.addEventListener('click', toggleOutline);
 
 // GFM task list checkboxes: clicking one flips the raw `[ ]`/`[x]` in the source.
 previewEl.addEventListener('click', (e) => {
@@ -334,6 +428,55 @@ sourceEl.addEventListener('click', updateStatusBar);
 sourceEl.addEventListener('keyup', updateStatusBar);
 sourceEl.addEventListener('select', updateStatusBar);
 
+function arrayBufferToBase64(buffer) {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
+// Paste-image-from-clipboard: intercept only when the clipboard actually carries image data.
+sourceEl.addEventListener('paste', async (e) => {
+  const items = e.clipboardData?.items;
+  if (!items) return;
+  const imageItem = Array.from(items).find((item) => item.type && item.type.startsWith('image/'));
+  if (!imageItem) return;
+
+  e.preventDefault();
+
+  const doc = activeDoc();
+  if (!doc) return;
+  if (!doc.filePath) {
+    alert('Save this file first, then paste the image again.');
+    return;
+  }
+
+  const file = imageItem.getAsFile();
+  if (!file) return;
+
+  const arrayBuffer = await file.arrayBuffer();
+  const base64 = arrayBufferToBase64(arrayBuffer);
+  const { relativePath } = await window.mdViewer.savePastedImage(base64, imageItem.type, doc.filePath);
+
+  const insertText = `![](${relativePath})`;
+  const start = sourceEl.selectionStart;
+  const end = sourceEl.selectionEnd;
+  const before = sourceEl.value.substring(0, start);
+  const after = sourceEl.value.substring(end);
+  doc.content = before + insertText + after;
+  sourceEl.value = doc.content;
+  const newPos = start + insertText.length;
+  sourceEl.setSelectionRange(newPos, newPos);
+
+  renderTabs();
+  updateStatusBar();
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(renderPreview, 150);
+});
+
 // Resizable split between source and preview panes.
 const sourceContainerEl = document.getElementById('source-container');
 const splitHandleEl = document.getElementById('split-handle');
@@ -392,6 +535,10 @@ document.addEventListener('keydown', (e) => {
     e.preventDefault();
     openFindBar();
   }
+  if (cmdOrCtrl && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    openCommandPalette();
+  }
   if (cmdOrCtrl && /^[1-9]$/.test(e.key)) {
     e.preventDefault();
     const index = Number(e.key) - 1;
@@ -404,6 +551,14 @@ document.addEventListener('keydown', (e) => {
   if (cmdOrCtrl && e.shiftKey && (e.key === ']' || e.key === '[')) {
     e.preventDefault();
     cycleTab(e.key === ']' ? 1 : -1);
+  }
+  if (cmdOrCtrl && e.shiftKey && e.key.toLowerCase() === 'o') {
+    e.preventDefault();
+    toggleOutline();
+  }
+  if (e.key === 'Escape' && outlinePanelEl.classList.contains('open')) {
+    e.preventDefault();
+    closeOutline();
   }
 });
 
@@ -599,6 +754,26 @@ window.mdViewer.onFolderOpened(({ rootPath, tree }) => {
   renderSidebar();
 });
 
+// Spellcheck toggle (menu-driven). Setting the `.spellcheck` DOM property on an
+// already-rendered <textarea> sometimes doesn't visibly take effect in Chromium
+// until the element is reflowed/refocused, so we also mirror the value onto the
+// spellcheck attribute and briefly blur+refocus to force a re-check.
+function applySpellcheck(value) {
+  sourceEl.spellcheck = value;
+  sourceEl.setAttribute('spellcheck', String(value));
+  const hadFocus = document.activeElement === sourceEl;
+  const selStart = sourceEl.selectionStart;
+  const selEnd = sourceEl.selectionEnd;
+  sourceEl.blur();
+  if (hadFocus) {
+    sourceEl.focus();
+    sourceEl.setSelectionRange(selStart, selEnd);
+  }
+}
+
+window.mdViewer.getInitialSpellcheck().then((value) => applySpellcheck(!!value));
+window.mdViewer.onSpellcheckChanged((value) => applySpellcheck(!!value));
+
 // Drag-and-drop support (multiple files at once)
 document.addEventListener('dragover', (e) => e.preventDefault());
 document.addEventListener('drop', async (e) => {
@@ -634,6 +809,111 @@ themeToggleEl.addEventListener('click', () => {
   const current = localStorage.getItem('theme') || 'system';
   const next = THEME_CYCLE[(THEME_CYCLE.indexOf(current) + 1) % THEME_CYCLE.length];
   applyTheme(next);
+});
+
+// Command Palette (Cmd/Ctrl+K)
+function buildPaletteCommands() {
+  const commands = [];
+
+  commands.push({ label: 'Save', run: () => saveActiveDoc() });
+  commands.push({ label: 'Find', run: () => openFindBar() });
+  if (activeId !== null) {
+    commands.push({ label: 'Close Tab', run: () => closeTab(activeId) });
+  }
+  commands.push({ label: 'Toggle Theme', run: () => themeToggleEl.click() });
+  commands.push({ label: 'Toggle Outline', run: () => toggleOutline() });
+
+  docs.forEach((doc) => {
+    commands.push({ label: baseName(doc.filePath), run: () => switchToTab(doc.id) });
+  });
+
+  commands.push({ label: 'Open File', run: () => window.mdViewer.openFileDialog() });
+  commands.push({ label: 'Open Folder', run: () => window.mdViewer.openFolderDialog() });
+  commands.push({ label: 'Export as HTML', run: () => window.mdViewer.exportHtml() });
+  commands.push({ label: 'Export as PDF', run: () => window.mdViewer.exportPdf() });
+
+  return commands;
+}
+
+function renderPaletteList() {
+  commandPaletteListEl.innerHTML = '';
+
+  if (paletteFiltered.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'command-empty';
+    empty.textContent = 'No matching commands';
+    commandPaletteListEl.appendChild(empty);
+    return;
+  }
+
+  paletteFiltered.forEach((cmd, index) => {
+    const item = document.createElement('div');
+    item.className = 'command-item' + (index === paletteSelectedIndex ? ' selected' : '');
+    item.textContent = cmd.label;
+    item.addEventListener('click', () => runPaletteCommand(cmd));
+    commandPaletteListEl.appendChild(item);
+  });
+}
+
+function filterPaletteCommands(query) {
+  const q = query.toLowerCase();
+  paletteFiltered = paletteCommands.filter((cmd) => cmd.label.toLowerCase().includes(q));
+  paletteSelectedIndex = paletteFiltered.length > 0 ? 0 : -1;
+  renderPaletteList();
+}
+
+function scrollSelectedIntoView() {
+  const selected = commandPaletteListEl.querySelector('.command-item.selected');
+  if (selected) selected.scrollIntoView({ block: 'nearest' });
+}
+
+function runPaletteCommand(cmd) {
+  closeCommandPalette();
+  cmd.run();
+}
+
+function openCommandPalette() {
+  paletteCommands = buildPaletteCommands();
+  commandPaletteInputEl.value = '';
+  filterPaletteCommands('');
+  commandPaletteOverlayEl.classList.remove('hidden');
+  commandPaletteInputEl.focus();
+}
+
+function closeCommandPalette() {
+  commandPaletteOverlayEl.classList.add('hidden');
+}
+
+commandPaletteInputEl.addEventListener('input', () => {
+  filterPaletteCommands(commandPaletteInputEl.value);
+});
+
+commandPaletteInputEl.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (paletteFiltered.length === 0) return;
+    paletteSelectedIndex = (paletteSelectedIndex + 1) % paletteFiltered.length;
+    renderPaletteList();
+    scrollSelectedIntoView();
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (paletteFiltered.length === 0) return;
+    paletteSelectedIndex = (paletteSelectedIndex - 1 + paletteFiltered.length) % paletteFiltered.length;
+    renderPaletteList();
+    scrollSelectedIntoView();
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (paletteSelectedIndex >= 0 && paletteFiltered[paletteSelectedIndex]) {
+      runPaletteCommand(paletteFiltered[paletteSelectedIndex]);
+    }
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    closeCommandPalette();
+  }
+});
+
+commandPaletteOverlayEl.addEventListener('click', (e) => {
+  if (e.target === commandPaletteOverlayEl) closeCommandPalette();
 });
 
 loadActiveIntoEditor();

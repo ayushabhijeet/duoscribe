@@ -10,6 +10,7 @@
   <div id="main-column">
     <div id="toolbar">
       <div id="tabbar"></div>
+      <button id="outline-toggle" title="Toggle outline (Cmd/Ctrl+Shift+O)">☰</button>
       <button id="theme-toggle" title="Toggle theme (system)">◐</button>
     </div>
     <div id="drop-hint">Drag .md files here, or File &gt; Open</div>
@@ -33,8 +34,15 @@
       </div>
       <div id="split-handle" title="Drag to resize"></div>
       <div id="preview"></div>
+      <div id="outline-panel"></div>
     </div>
     <div id="statusbar"></div>
+  </div>
+  <div id="command-palette-overlay" class="hidden">
+    <div id="command-palette">
+      <input id="command-palette-input" type="text" placeholder="Type a command..." autocomplete="off" spellcheck="false" />
+      <div id="command-palette-list"></div>
+    </div>
   </div>
   <script src="vendor/mermaid.min.js"></script>
   <script src="renderer.js"></script>

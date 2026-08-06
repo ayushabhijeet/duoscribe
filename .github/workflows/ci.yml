@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  sanity:
+    name: Sanity checks (lint + package smoke test)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Syntax-check main process / preload / renderer
+        run: |
+          node -c main.js
+          node -c preload.js
+          node -c renderer.js
+
+      - name: Validate electron-builder config (unpacked package, no publish)
+        run: npx electron-builder --dir --publish=never

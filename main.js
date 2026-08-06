@@ -9,6 +9,9 @@ const RECENT_FILES_PATH = path.join(app.getPath('userData'), 'recent-files.json'
 const MAX_RECENT_FILES = 10;
 let recentFiles = [];
 
+const SETTINGS_PATH = path.join(app.getPath('userData'), 'settings.json');
+let settings = { spellcheck: false };
+
 const watchers = new Map();
 
 function loadRecentFiles() {
@@ -24,6 +27,31 @@ function loadRecentFiles() {
 
 function saveRecentFiles() {
   fs.writeFileSync(RECENT_FILES_PATH, JSON.stringify(recentFiles, null, 2), 'utf-8');
+}
+
+function loadSettings() {
+  try {
+    if (fs.existsSync(SETTINGS_PATH)) {
+      const data = fs.readFileSync(SETTINGS_PATH, 'utf-8');
+      const parsed = JSON.parse(data) || {};
+      settings = { spellcheck: false, ...parsed };
+    }
+  } catch (err) {
+    settings = { spellcheck: false };
+  }
+}
+
+function saveSettings() {
+  fs.writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2), 'utf-8');
+}
+
+function toggleSpellcheck() {
+  settings.spellcheck = !settings.spellcheck;
+  saveSettings();
+  rebuildMenu();
+  if (mainWindow) {
+    mainWindow.webContents.send('spellcheck-changed', settings.spellcheck);
+  }
 }
 
 function addRecentFile(filePath) {
@@ -276,34 +304,44 @@ function scanFolderForMarkdown(folderPath, maxDepth = 10, currentDepth = 0) {
   });
 }
 
+async function openFileDialog() {
+  const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile'],
+    filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }],
+  });
+  if (!canceled && filePaths[0]) {
+    openFileInWindow(filePaths[0]);
+  }
+}
+
+async function openFolderDialog() {
+  const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory'],
+  });
+  if (!canceled && filePaths[0]) {
+    const rootPath = filePaths[0];
+    const tree = scanFolderForMarkdown(rootPath);
+    mainWindow.webContents.send('folder-opened', { rootPath, tree });
+  }
+}
+
 function buildMenu() {
   const fileSubmenu = [
     {
       label: 'Open...',
       accelerator: 'CmdOrCtrl+O',
-      click: async () => {
-        const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
-          properties: ['openFile'],
-          filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }],
-        });
-        if (!canceled && filePaths[0]) {
-          openFileInWindow(filePaths[0]);
-        }
-      },
+      click: () => openFileDialog(),
     },
     {
       label: 'Open Folder...',
-      accelerator: 'CmdOrCtrl+K CmdOrCtrl+O',
-      click: async () => {
-        const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
-          properties: ['openDirectory'],
-        });
-        if (!canceled && filePaths[0]) {
-          const rootPath = filePaths[0];
-          const tree = scanFolderForMarkdown(rootPath);
-          mainWindow.webContents.send('folder-opened', { rootPath, tree });
-        }
-      },
+      // NOTE: was 'CmdOrCtrl+K CmdOrCtrl+O' -- changed because CmdOrCtrl+K is now the
+      // Command Palette shortcut (renderer.js) and a chord accelerator starting with
+      // the same key would shadow it.
+      // NOTE: further changed from 'CmdOrCtrl+Shift+O' -- that combo is now the
+      // Outline panel toggle (renderer.js global keydown listener), and a menu
+      // accelerator would swallow the keypress before it ever reached the renderer.
+      accelerator: 'CmdOrCtrl+Alt+O',
+      click: () => openFolderDialog(),
     },
     {
       label: 'Save',
@@ -360,12 +398,48 @@ function buildMenu() {
 
   fileSubmenu.push({ role: 'quit' });
 
+  const isMac = process.platform === 'darwin';
+  const editSubmenu = [
+    { role: 'undo' },
+    { role: 'redo' },
+    { type: 'separator' },
+    { role: 'cut' },
+    { role: 'copy' },
+    { role: 'paste' },
+  ];
+  if (isMac) {
+    editSubmenu.push({ role: 'pasteAndMatchStyle' });
+  }
+  editSubmenu.push({ role: 'delete' });
+  editSubmenu.push({ type: 'separator' });
+  editSubmenu.push({ role: 'selectAll' });
+  if (isMac) {
+    editSubmenu.push({ type: 'separator' });
+    editSubmenu.push({
+      label: 'Speech',
+      submenu: [
+        { role: 'startSpeaking' },
+        { role: 'stopSpeaking' },
+      ],
+    });
+  }
+  editSubmenu.push({ type: 'separator' });
+  editSubmenu.push({
+    label: 'Spellcheck',
+    type: 'checkbox',
+    checked: settings.spellcheck,
+    click: () => toggleSpellcheck(),
+  });
+
   const template = [
     {
       label: 'File',
       submenu: fileSubmenu,
     },
-    { role: 'editMenu' },
+    {
+      label: 'Edit',
+      submenu: editSubmenu,
+    },
     { role: 'viewMenu' },
     {
       label: 'Help',
@@ -486,6 +560,7 @@ if (!gotLock) {
 
   app.whenReady().then(() => {
     loadRecentFiles();
+    loadSettings();
     buildMenu();
     createWindow();
     setTimeout(() => checkForUpdates(false), 3000);
@@ -513,9 +588,44 @@ ipcMain.handle('save-file', async (event, { filePath, content }) => {
   return { saved: true, filePath };
 });
 
+ipcMain.handle('get-spellcheck', () => settings.spellcheck);
+
 ipcMain.handle('open-file-path', async (event, filePath) => {
   const content = fs.readFileSync(filePath, 'utf-8');
   return { filePath, content };
+});
+
+ipcMain.handle('open-file-dialog', () => openFileDialog());
+
+ipcMain.handle('open-folder-dialog', () => openFolderDialog());
+
+ipcMain.handle('export-html', () => exportAsHtml());
+
+ipcMain.handle('export-pdf', () => exportAsPdf());
+
+ipcMain.handle('save-pasted-image', async (event, { imageData, mimeType, filePath }) => {
+  const dir = path.dirname(filePath);
+  const assetsDir = path.join(dir, 'assets');
+  if (!fs.existsSync(assetsDir)) {
+    fs.mkdirSync(assetsDir, { recursive: true });
+  }
+
+  const extMap = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp', 'image/svg+xml': 'svg', 'image/bmp': 'bmp' };
+  const ext = extMap[mimeType] || (mimeType && mimeType.split('/')[1]) || 'png';
+
+  let fileName = `pasted-image-${Date.now()}.${ext}`;
+  let destPath = path.join(assetsDir, fileName);
+  let counter = 1;
+  while (fs.existsSync(destPath)) {
+    fileName = `pasted-image-${Date.now()}-${counter}.${ext}`;
+    destPath = path.join(assetsDir, fileName);
+    counter++;
+  }
+
+  const buffer = Buffer.from(imageData, 'base64');
+  fs.writeFileSync(destPath, buffer);
+
+  return { relativePath: `assets/${fileName}` };
 });
 
 ipcMain.on('watch-files', (event, filePaths) => {
