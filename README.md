@@ -56,7 +56,10 @@ npm install
 npm start          # run in development
 npm run dist:mac   # build macOS dmg (current arch only; pass --x64/--arm64 to target one)
 npm run dist:win   # build Windows installer (nsis, x64 + arm64)
+npm run eval       # smoke-test suite: drives a real running instance via CDP, asserts on DOM/state
 ```
+
+`npm run eval` is this project's only automated regression check (there's no unit test suite) — it runs in CI on every PR and push to `main`. It's expected to grow alongside the app: any PR adding user-facing behavior should extend `scripts/eval-app.js` (and `scripts/fixtures/eval.md` if needed) with assertions covering it.
 
 Build output is written to `dist/`.
 
