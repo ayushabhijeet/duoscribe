@@ -521,6 +521,39 @@ splitHandleEl.addEventListener('dblclick', () => {
   localStorage.setItem('splitPercent', 50);
 });
 
+// Single-pane focus mode: view just the raw source or just the rendered
+// preview, full width, instead of the split. Toggling the active one (or
+// switching to it while split) returns to the persisted split percentage.
+const viewSourceOnlyEl = document.getElementById('view-source-only');
+const viewPreviewOnlyEl = document.getElementById('view-preview-only');
+let paneViewMode = 'split'; // 'split' | 'source' | 'preview'
+
+function applyPaneViewMode(mode) {
+  paneViewMode = mode;
+  panesEl.classList.remove('view-source-only', 'view-preview-only');
+  viewSourceOnlyEl.classList.remove('active');
+  viewPreviewOnlyEl.classList.remove('active');
+
+  if (mode === 'source') {
+    panesEl.classList.add('view-source-only');
+    sourceContainerEl.style.flex = '1 1 auto';
+    viewSourceOnlyEl.classList.add('active');
+  } else if (mode === 'preview') {
+    panesEl.classList.add('view-preview-only');
+    viewPreviewOnlyEl.classList.add('active');
+  } else {
+    const saved = parseFloat(localStorage.getItem('splitPercent'));
+    applySplit(Number.isFinite(saved) ? saved : 50);
+  }
+}
+
+function togglePaneViewMode(mode) {
+  applyPaneViewMode(paneViewMode === mode ? 'split' : mode);
+}
+
+viewSourceOnlyEl.addEventListener('click', () => togglePaneViewMode('source'));
+viewPreviewOnlyEl.addEventListener('click', () => togglePaneViewMode('preview'));
+
 document.addEventListener('keydown', (e) => {
   const cmdOrCtrl = e.metaKey || e.ctrlKey;
   if (cmdOrCtrl && e.key.toLowerCase() === 's') {
@@ -543,6 +576,16 @@ document.addEventListener('keydown', (e) => {
     e.preventDefault();
     const index = Number(e.key) - 1;
     if (docs[index]) switchToTab(docs[index].id);
+  }
+  // e.code (not e.key) so this is reliable regardless of what the shifted
+  // digit key produces on a given keyboard layout (e.g. '!' for Shift+1).
+  if (cmdOrCtrl && e.shiftKey && e.code === 'Digit1') {
+    e.preventDefault();
+    togglePaneViewMode('source');
+  }
+  if (cmdOrCtrl && e.shiftKey && e.code === 'Digit2') {
+    e.preventDefault();
+    togglePaneViewMode('preview');
   }
   if (e.ctrlKey && e.key === 'Tab') {
     e.preventDefault();
@@ -822,6 +865,8 @@ function buildPaletteCommands() {
   }
   commands.push({ label: 'Toggle Theme', run: () => themeToggleEl.click() });
   commands.push({ label: 'Toggle Outline', run: () => toggleOutline() });
+  commands.push({ label: 'Focus Raw Pane', run: () => togglePaneViewMode('source') });
+  commands.push({ label: 'Focus Preview Pane', run: () => togglePaneViewMode('preview') });
 
   docs.forEach((doc) => {
     commands.push({ label: baseName(doc.filePath), run: () => switchToTab(doc.id) });

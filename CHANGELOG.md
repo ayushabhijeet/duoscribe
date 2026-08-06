@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.3.0
+
+- Focus either pane full-width instead of the split view — Cmd/Ctrl+Shift+1 for the raw pane, Cmd/Ctrl+Shift+2 for preview, toggle buttons in the toolbar, or via the command palette. Pressing the active one again returns to the split.
+
 ## v1.2.0
 
 - Syntax-highlighted fenced code blocks (highlight.js)

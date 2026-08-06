@@ -196,6 +196,30 @@ body {
   color: var(--accent);
 }
 
+#view-source-only,
+#view-preview-only {
+  flex: 0 0 auto;
+  width: 40px;
+  border: none;
+  border-left: 1px solid var(--pane-border);
+  background: transparent;
+  color: var(--fg-secondary);
+  font-size: 15px;
+  cursor: pointer;
+  transition: color var(--transition), background-color var(--transition);
+}
+
+#view-source-only:hover,
+#view-preview-only:hover {
+  color: var(--fg);
+  background-color: var(--accent-light);
+}
+
+#view-source-only.active,
+#view-preview-only.active {
+  color: var(--accent);
+}
+
 #tabbar::-webkit-scrollbar {
   height: 4px;
 }
@@ -348,6 +372,20 @@ body {
 }
 
 #split-handle.hidden {
+  display: none;
+}
+
+/* Single-pane focus mode: hide the other pane and the handle, let the
+   visible one fill #panes. The visible pane's flex-basis is reset via JS
+   (inline style takes precedence over the persisted split percentage). */
+#panes.view-source-only #preview,
+#panes.view-source-only #split-handle,
+#panes.view-source-only #outline-panel {
+  display: none;
+}
+
+#panes.view-preview-only #source-container,
+#panes.view-preview-only #split-handle {
   display: none;
 }
 
